@@ -21,9 +21,9 @@
     "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml",
     "generate:git-info": "rimraf .git-info && node_modules/.bin/api-toolkit-git-info",
     "generate:vercel": "npm run generate:git-info && npm run generate:openapi && npm run generate:docs",
-    "testenv:run": "docker compose -f docker/docker-compose.dev.postgres.yml up",
-    "testenv:stop": "docker compose -f docker/docker-compose.dev.postgres.yml down -v -t 0",
-    "testenv:logs": "docker compose -f docker/docker-compose.dev.postgres.yml logs -t -f",
+    "testenv:run": "docker compose -f ../../dockerfiles/docker-compose.dev.postgres.yml up",
+    "testenv:stop": "docker compose -f ../../dockerfiles/docker-compose.dev.postgres.yml down -v -t 0",
+    "testenv:logs": "docker compose -f ../../dockerfiles/docker-compose.dev.postgres.yml logs -t -f",
     "generate:client:typescript": "swagger-codegen generate -i ./tmp/openapi.yaml -l typescript-fetch -o ./client/typescript -c ./client/typescript.json"
   },
   "prettier": "@stacks/prettier-config",

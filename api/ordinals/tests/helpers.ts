@@ -10,7 +10,11 @@ export async function runMigrations(sql: PgSqlClient, directory: string) {
   const sqlFiles = files
     .filter(file => path.extname(file).toLowerCase() === '.sql')
     .map(file => path.join(directory, file))
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => {
+      const numA = parseInt(a.match(/\d+/)?.toString() || '0', 10);
+      const numB = parseInt(b.match(/\d+/)?.toString() || '0', 10);
+      return numA - numB;
+    });
   for (const sqlFile of sqlFiles) {
     await sql.file(sqlFile);
   }
@@ -26,6 +30,8 @@ export async function clearDb(sql: PgSqlClient) {
         EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
       END LOOP;
     END $$;
+  `;
+  await sql`
     DO $$ DECLARE
       r RECORD;
     BEGIN
@@ -44,7 +50,7 @@ export type TestFastifyServer = FastifyInstance<
   TypeBoxTypeProvider
 >;
 
-export type TestInscriptionsRow = {
+type TestOrdinalsInscriptionsRow = {
   inscription_id: string;
   ordinal_number: string;
   number: string;
@@ -69,11 +75,11 @@ export type TestInscriptionsRow = {
   delegate: string | null;
   timestamp: number;
 };
-export async function insertTestInscription(sql: PgSqlClient, row: TestInscriptionsRow) {
+async function insertTestInscription(sql: PgSqlClient, row: TestOrdinalsInscriptionsRow) {
   await sql`INSERT INTO inscriptions ${sql(row)}`;
 }
 
-export type TestLocationsRow = {
+type TestOrdinalsLocationsRow = {
   ordinal_number: string;
   block_height: string;
   tx_index: number;
@@ -88,8 +94,160 @@ export type TestLocationsRow = {
   transfer_type: string;
   timestamp: number;
 };
-export async function insertTestLocation(sql: PgSqlClient, row: TestLocationsRow) {
+async function insertTestLocation(sql: PgSqlClient, row: TestOrdinalsLocationsRow) {
   await sql`INSERT INTO locations ${sql(row)}`;
+}
+
+type TestOrdinalsCurrentLocationsRow = {
+  ordinal_number: string;
+  block_height: string;
+  tx_id: string;
+  tx_index: number;
+  address: string;
+  output: string;
+  offset: string | null;
+};
+async function insertTestCurrentLocation(sql: PgSqlClient, row: TestOrdinalsCurrentLocationsRow) {
+  await sql`
+    INSERT INTO current_locations ${sql(row)}
+    ON CONFLICT (ordinal_number) DO UPDATE SET
+      block_height = EXCLUDED.block_height,
+      tx_id = EXCLUDED.tx_id,
+      tx_index = EXCLUDED.tx_index,
+      address = EXCLUDED.address,
+      output = EXCLUDED.output,
+      \"offset\" = EXCLUDED.\"offset\"
+  `;
+}
+
+type TestOrdinalsSatoshisRow = {
+  ordinal_number: string;
+  rarity: string;
+  coinbase_height: string;
+};
+async function insertTestSatoshi(sql: PgSqlClient, row: TestOrdinalsSatoshisRow) {
+  await sql`INSERT INTO satoshis ${sql(row)}`;
+}
+
+type TestOrdinalsInscriptionTransfersRow = {
+  inscription_id: string;
+  number: string;
+  ordinal_number: string;
+  block_height: string;
+  tx_index: number;
+  from_block_height: string;
+  from_tx_index: number;
+  block_transfer_index: number;
+};
+async function insertTestInscriptionTransfer(
+  sql: PgSqlClient,
+  row: TestOrdinalsInscriptionTransfersRow
+) {
+  await sql`INSERT INTO inscription_transfers ${sql(row)}`;
+}
+
+export type TestOrdinalsInscriptionReveal = TestOrdinalsInscriptionsRow &
+  TestOrdinalsLocationsRow &
+  TestOrdinalsSatoshisRow &
+  TestOrdinalsCurrentLocationsRow;
+export async function inscriptionReveal(sql: PgSqlClient, reveal: TestOrdinalsInscriptionReveal) {
+  await insertTestSatoshi(sql, {
+    ordinal_number: reveal.ordinal_number,
+    rarity: reveal.rarity,
+    coinbase_height: reveal.coinbase_height,
+  });
+  await insertTestInscription(sql, {
+    inscription_id: reveal.inscription_id,
+    ordinal_number: reveal.ordinal_number,
+    number: reveal.number,
+    classic_number: reveal.classic_number,
+    block_height: reveal.block_height,
+    block_hash: reveal.block_hash,
+    tx_id: reveal.tx_id,
+    tx_index: reveal.tx_index,
+    address: reveal.address,
+    mime_type: reveal.mime_type,
+    content_type: reveal.content_type,
+    content_length: reveal.content_length,
+    content: reveal.content,
+    fee: reveal.fee,
+    curse_type: reveal.curse_type,
+    recursive: reveal.recursive,
+    input_index: reveal.input_index,
+    pointer: reveal.pointer,
+    metadata: reveal.metadata,
+    metaprotocol: reveal.metaprotocol,
+    parent: reveal.parent,
+    delegate: reveal.delegate,
+    timestamp: reveal.timestamp,
+  });
+  await insertTestLocation(sql, {
+    ordinal_number: reveal.ordinal_number,
+    block_height: reveal.block_height,
+    tx_index: reveal.tx_index,
+    tx_id: reveal.tx_id,
+    block_hash: reveal.block_hash,
+    address: reveal.address,
+    output: reveal.output,
+    offset: reveal.offset,
+    prev_output: reveal.prev_output,
+    prev_offset: reveal.prev_offset,
+    value: reveal.value,
+    transfer_type: reveal.transfer_type,
+    timestamp: reveal.timestamp,
+  });
+  await insertTestCurrentLocation(sql, {
+    ordinal_number: reveal.ordinal_number,
+    block_height: reveal.block_height,
+    tx_index: reveal.tx_index,
+    tx_id: reveal.tx_id,
+    address: reveal.address,
+    output: reveal.output,
+    offset: reveal.offset,
+  });
+}
+
+export type TestOrdinalsInscriptionTransfer = TestOrdinalsLocationsRow &
+  TestOrdinalsCurrentLocationsRow &
+  TestOrdinalsInscriptionTransfersRow;
+export async function inscriptionTransfer(
+  sql: PgSqlClient,
+  transfer: TestOrdinalsInscriptionTransfer
+) {
+  await insertTestLocation(sql, {
+    ordinal_number: transfer.ordinal_number,
+    block_height: transfer.block_height,
+    tx_index: transfer.tx_index,
+    tx_id: transfer.tx_id,
+    block_hash: transfer.block_hash,
+    address: transfer.address,
+    output: transfer.output,
+    offset: transfer.offset,
+    prev_output: transfer.prev_output,
+    prev_offset: transfer.prev_offset,
+    value: transfer.value,
+    transfer_type: transfer.transfer_type,
+    timestamp: transfer.timestamp,
+  });
+  await insertTestCurrentLocation(sql, {
+    ordinal_number: transfer.ordinal_number,
+    block_height: transfer.block_height,
+    tx_index: transfer.tx_index,
+    tx_id: transfer.tx_id,
+    address: transfer.address,
+    output: transfer.output,
+    offset: transfer.offset,
+  });
+  await insertTestInscriptionTransfer(sql, {
+    inscription_id: transfer.inscription_id,
+    number: transfer.number,
+    ordinal_number: transfer.ordinal_number,
+    block_height: transfer.block_height,
+    tx_index: transfer.tx_index,
+    from_block_height: transfer.from_block_height,
+    from_tx_index: transfer.from_tx_index,
+    block_transfer_index: transfer.block_transfer_index,
+  });
 }
 
 // export class TestChainhookPayloadBuilder {

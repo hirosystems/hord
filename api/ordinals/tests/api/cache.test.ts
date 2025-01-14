@@ -4,8 +4,8 @@ import { PgStore } from '../../src/pg/pg-store';
 import {
   TestFastifyServer,
   clearDb,
-  insertTestInscription,
-  insertTestLocation,
+  inscriptionReveal,
+  inscriptionTransfer,
   runMigrations,
 } from '../helpers';
 
@@ -16,9 +16,9 @@ describe('ETag cache', () => {
 
   beforeEach(async () => {
     db = await PgStore.connect();
-    await runMigrations(db.sql, './migrations/ordinals');
+    await runMigrations(db.sql, '../../migrations/ordinals');
     brc20Db = await Brc20PgStore.connect();
-    await runMigrations(db.sql, './migrations/ordinals-brc20');
+    await runMigrations(brc20Db.sql, '../../migrations/ordinals-brc20');
     fastify = await buildApiServer({ db, brc20Db });
   });
 
@@ -31,7 +31,7 @@ describe('ETag cache', () => {
   });
 
   test('inscription cache control', async () => {
-    await insertTestInscription(db.sql, {
+    await inscriptionReveal(db.sql, {
       inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
       ordinal_number: '257418248345364',
       number: '0',
@@ -55,21 +55,14 @@ describe('ETag cache', () => {
       parent: null,
       delegate: null,
       timestamp: 10000,
-    });
-    await insertTestLocation(db.sql, {
-      ordinal_number: '257418248345364',
-      block_height: '775617',
-      tx_index: 0,
-      tx_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dc',
-      block_hash: '000000000000000000016bcbcc915c68bce367e18f09d0945dc6aacc0ee20121',
-      address: 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td',
       output: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dc:0',
       offset: '0',
       prev_output: null,
       prev_offset: null,
       value: '10000',
       transfer_type: 'transferred',
-      timestamp: 10000,
+      rarity: 'common',
+      coinbase_height: '9000',
     });
     const response = await fastify.inject({
       method: 'GET',
@@ -104,7 +97,7 @@ describe('ETag cache', () => {
     expect(nCached.statusCode).toBe(304);
 
     // Perform transfer and check cache
-    await insertTestLocation(db.sql, {
+    await inscriptionTransfer(db.sql, {
       ordinal_number: '257418248345364',
       block_height: '775618',
       tx_index: 0,
@@ -118,6 +111,11 @@ describe('ETag cache', () => {
       value: '8000',
       transfer_type: 'transferred',
       timestamp: 10001,
+      inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
+      number: '0',
+      from_block_height: '775617',
+      from_tx_index: 0,
+      block_transfer_index: 0,
     });
     const cached2 = await fastify.inject({
       method: 'GET',

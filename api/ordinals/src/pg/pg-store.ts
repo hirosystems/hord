@@ -119,12 +119,17 @@ export class PgStore extends BasePgStore {
 
   async getInscriptionETag(args: InscriptionIdentifier): Promise<string | undefined> {
     const result = await this.sql<{ etag: string }[]>`
-      SELECT date_part('epoch', updated_at)::text AS etag
-      FROM inscriptions
+      SELECT l.timestamp::text AS etag
+      FROM inscriptions AS i
+      INNER JOIN current_locations AS c ON i.ordinal_number = c.ordinal_number
+      INNER JOIN locations AS l ON
+        l.ordinal_number = c.ordinal_number AND
+        l.block_height = c.block_height AND
+        l.tx_index = c.tx_index
       WHERE ${
         'genesis_id' in args
-          ? this.sql`genesis_id = ${args.genesis_id}`
-          : this.sql`number = ${args.number}`
+          ? this.sql`i.inscription_id = ${args.genesis_id}`
+          : this.sql`i.number = ${args.number}`
       }
     `;
     if (result.count > 0) {
