@@ -5,6 +5,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PgSqlClient } from '@hirosystems/api-toolkit';
 
+export const ORDINALS_MIGRATIONS_DIR = '../../migrations/ordinals';
+export const BRC20_MIGRATIONS_DIR = '../../migrations/ordinals-brc20';
+
+/// Runs SQL migrations based on the Rust `refinery` crate standard.
 export async function runMigrations(sql: PgSqlClient, directory: string) {
   const files = fs.readdirSync(directory);
   const sqlFiles = files
@@ -15,12 +19,12 @@ export async function runMigrations(sql: PgSqlClient, directory: string) {
       const numB = parseInt(b.match(/\d+/)?.toString() || '0', 10);
       return numA - numB;
     });
-  for (const sqlFile of sqlFiles) {
-    await sql.file(sqlFile);
-  }
+  for (const sqlFile of sqlFiles) await sql.file(sqlFile);
   return sqlFiles;
 }
 
+/// Drops all tables and types from a test DB. Equivalent to a migration rollback, which are
+/// unsupported by the `refinery` crate.
 export async function clearDb(sql: PgSqlClient) {
   await sql`
     DO $$ DECLARE
@@ -146,6 +150,22 @@ async function insertTestInscriptionTransfer(
   await sql`INSERT INTO inscription_transfers ${sql(row)}`;
 }
 
+type TestOrdinalsCountsByBlockRow = {
+  block_height: string;
+  block_hash: string;
+  inscription_count: number;
+  inscription_count_accum: number;
+  timestamp: number;
+};
+async function insertTestCountsByBlock(sql: PgSqlClient, row: TestOrdinalsCountsByBlockRow) {
+  await sql`
+    INSERT INTO counts_by_block ${sql(row)}
+    ON CONFLICT (block_height) DO UPDATE SET
+      inscription_count = counts_by_block.inscription_count + EXCLUDED.inscription_count,
+      inscription_count_accum = counts_by_block.inscription_count_accum + EXCLUDED.inscription_count_accum
+  `;
+}
+
 export type TestOrdinalsInscriptionReveal = TestOrdinalsInscriptionsRow &
   TestOrdinalsLocationsRow &
   TestOrdinalsSatoshisRow &
@@ -205,6 +225,13 @@ export async function inscriptionReveal(sql: PgSqlClient, reveal: TestOrdinalsIn
     output: reveal.output,
     offset: reveal.offset,
   });
+  await insertTestCountsByBlock(sql, {
+    block_height: reveal.block_height,
+    block_hash: reveal.block_hash,
+    inscription_count: 1,
+    inscription_count_accum: 1,
+    timestamp: reveal.timestamp,
+  });
 }
 
 export type TestOrdinalsInscriptionTransfer = TestOrdinalsLocationsRow &
@@ -250,163 +277,6 @@ export async function inscriptionTransfer(
   });
 }
 
-// export class TestChainhookPayloadBuilder {
-//   private payload: BitcoinPayload = {
-//     apply: [],
-//     rollback: [],
-//     chainhook: {
-//       uuid: 'test',
-//       predicate: {
-//         scope: 'ordinals_protocol',
-//         operation: 'inscription_feed',
-//         meta_protocols: ['brc-20'],
-//       },
-//       is_streaming_blocks: false,
-//     },
-//   };
-//   private action: 'apply' | 'rollback' = 'apply';
-//   private get lastBlock(): BitcoinEvent {
-//     return this.payload[this.action][this.payload[this.action].length - 1] as BitcoinEvent;
-//   }
-//   private get lastBlockTx(): BitcoinTransaction {
-//     return this.lastBlock.transactions[this.lastBlock.transactions.length - 1];
-//   }
-//   private txIndex = 0;
-
-//   streamingBlocks(streaming: boolean): this {
-//     this.payload.chainhook.is_streaming_blocks = streaming;
-//     return this;
-//   }
-
-//   apply(): this {
-//     this.action = 'apply';
-//     return this;
-//   }
-
-//   rollback(): this {
-//     this.action = 'rollback';
-//     return this;
-//   }
-
-//   block(args: { height: number; hash?: string; timestamp?: number }): this {
-//     this.payload[this.action].push({
-//       block_identifier: {
-//         index: args.height,
-//         hash: args.hash ?? '0x163de66dc9c0949905bfe8e148bde04600223cf88d19f26fdbeba1d6e6fa0f88',
-//       },
-//       parent_block_identifier: {
-//         index: args.height - 1,
-//         hash: '0x117374e7078440835a744b6b1b13dd2c48c4eff8c58dde07162241a8f15d1e03',
-//       },
-//       timestamp: args.timestamp ?? 1677803510,
-//       transactions: [],
-//       metadata: {},
-//     } as BitcoinEvent);
-//     return this;
-//   }
-
-//   transaction(args: { hash: string }): this {
-//     this.lastBlock.transactions.push({
-//       transaction_identifier: {
-//         hash: args.hash,
-//       },
-//       operations: [],
-//       metadata: {
-//         ordinal_operations: [],
-//         proof: null,
-//         index: this.txIndex++,
-//       },
-//     });
-//     return this;
-//   }
-
-//   inscriptionRevealed(args: BitcoinInscriptionRevealed): this {
-//     this.lastBlockTx.metadata.ordinal_operations.push({ inscription_revealed: args });
-//     return this;
-//   }
-
-//   inscriptionTransferred(args: BitcoinInscriptionTransferred): this {
-//     this.lastBlockTx.metadata.ordinal_operations.push({ inscription_transferred: args });
-//     return this;
-//   }
-
-//   brc20(
-//     args: BitcoinBrc20Operation,
-//     opts: { inscription_number: number; ordinal_number?: number }
-//   ): this {
-//     this.lastBlockTx.metadata.brc20_operation = args;
-//     if ('transfer_send' in args) {
-//       this.lastBlockTx.metadata.ordinal_operations.push({
-//         inscription_transferred: {
-//           ordinal_number: opts.ordinal_number ?? opts.inscription_number,
-//           destination: {
-//             type: 'transferred',
-//             value: args.transfer_send.receiver_address,
-//           },
-//           satpoint_pre_transfer: `${args.transfer_send.inscription_id.split('i')[0]}:0:0`,
-//           satpoint_post_transfer: `${this.lastBlockTx.transaction_identifier.hash}:0:0`,
-//           post_transfer_output_value: null,
-//           tx_index: 0,
-//         },
-//       });
-//     } else {
-//       let inscription_id = '';
-//       let inscriber_address = '';
-//       if ('deploy' in args) {
-//         inscription_id = args.deploy.inscription_id;
-//         inscriber_address = args.deploy.address;
-//       } else if ('mint' in args) {
-//         inscription_id = args.mint.inscription_id;
-//         inscriber_address = args.mint.address;
-//       } else {
-//         inscription_id = args.transfer.inscription_id;
-//         inscriber_address = args.transfer.address;
-//       }
-//       this.lastBlockTx.metadata.ordinal_operations.push({
-//         inscription_revealed: {
-//           content_bytes: `0x101010`,
-//           content_type: 'text/plain;charset=utf-8',
-//           content_length: 3,
-//           inscription_number: {
-//             jubilee: opts.inscription_number,
-//             classic: opts.inscription_number,
-//           },
-//           inscription_fee: 2000,
-//           inscription_id,
-//           inscription_output_value: 10000,
-//           inscriber_address,
-//           ordinal_number: opts.ordinal_number ?? opts.inscription_number,
-//           ordinal_block_height: 0,
-//           ordinal_offset: 0,
-//           satpoint_post_inscription: `${inscription_id.split('i')[0]}:0:0`,
-//           inscription_input_index: 0,
-//           transfers_pre_inscription: 0,
-//           tx_index: 0,
-//           curse_type: null,
-//           inscription_pointer: null,
-//           delegate: null,
-//           metaprotocol: null,
-//           metadata: undefined,
-//           parent: null,
-//         },
-//       });
-//     }
-//     return this;
-//   }
-
-//   build(): BitcoinPayload {
-//     return this.payload;
-//   }
-// }
-
-// export function rollBack(payload: BitcoinPayload) {
-//   return {
-//     ...payload,
-//     apply: [],
-//     rollback: payload.apply,
-//   };
-// }
-
 /** Generate a random hash like string for testing */
 export const randomHash = () =>
   [...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
@@ -423,9 +293,6 @@ export function* incrementing(
     current += step;
   }
 }
-
-export const BRC20_GENESIS_BLOCK = 779832;
-export const BRC20_SELF_MINT_ACTIVATION_BLOCK = 837090;
 
 // export async function deployAndMintPEPE(db: PgStore, address: string) {
 //   await db.updateInscriptions(

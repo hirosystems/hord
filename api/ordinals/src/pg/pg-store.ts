@@ -76,7 +76,7 @@ export class PgStore extends BasePgStore {
 
   async getInscriptionsIndexETag(): Promise<string> {
     const result = await this.sql<{ etag: string }[]>`
-      SELECT date_part('epoch', MAX(updated_at))::text AS etag FROM inscriptions
+      SELECT MAX(timestamp)::text AS etag FROM locations
     `;
     return result[0].etag;
   }
