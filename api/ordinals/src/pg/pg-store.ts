@@ -306,7 +306,7 @@ export class PgStore extends BasePgStore {
       WHERE ${
         'number' in args
           ? this.sql`i.number = ${args.number}`
-          : this.sql`i.genesis_id = ${args.genesis_id}`
+          : this.sql`i.inscription_id = ${args.genesis_id}`
       }
         AND (
           (l.block_height > i.block_height)
