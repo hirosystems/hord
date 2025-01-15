@@ -172,6 +172,17 @@ async function insertTestCountsByBlock(sql: PgSqlClient, row: TestOrdinalsCounts
   `;
 }
 
+export type TestOrdinalsInscriptionRecursionsRow = {
+  inscription_id: string;
+  ref_inscription_id: string;
+};
+export async function insertTestInscriptionRecursion(
+  sql: PgSqlClient,
+  row: TestOrdinalsInscriptionRecursionsRow
+) {
+  await sql`INSERT INTO inscription_recursions ${sql(row)}`;
+}
+
 export type TestOrdinalsInscriptionReveal = TestOrdinalsInscriptionsRow &
   TestOrdinalsLocationsRow &
   TestOrdinalsSatoshisRow &
