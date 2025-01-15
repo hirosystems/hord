@@ -99,7 +99,10 @@ type TestOrdinalsLocationsRow = {
   timestamp: number;
 };
 async function insertTestLocation(sql: PgSqlClient, row: TestOrdinalsLocationsRow) {
-  await sql`INSERT INTO locations ${sql(row)}`;
+  await sql`
+    INSERT INTO locations ${sql(row)}
+    ON CONFLICT (ordinal_number, block_height, tx_index) DO NOTHING
+  `;
 }
 
 type TestOrdinalsCurrentLocationsRow = {
@@ -130,7 +133,10 @@ type TestOrdinalsSatoshisRow = {
   coinbase_height: string;
 };
 async function insertTestSatoshi(sql: PgSqlClient, row: TestOrdinalsSatoshisRow) {
-  await sql`INSERT INTO satoshis ${sql(row)}`;
+  await sql`
+    INSERT INTO satoshis ${sql(row)}
+    ON CONFLICT (ordinal_number) DO NOTHING
+  `;
 }
 
 type TestOrdinalsInscriptionTransfersRow = {
