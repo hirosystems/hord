@@ -231,12 +231,12 @@ export class PgStore extends BasePgStore {
             }
             ${
               filters?.from_genesis_timestamp
-                ? sql`AND i.timestamp >= to_timestamp(${filters.from_genesis_timestamp})`
+                ? sql`AND i.timestamp >= ${filters.from_genesis_timestamp}`
                 : sql``
             }
             ${
               filters?.to_genesis_timestamp
-                ? sql`AND i.timestamp <= to_timestamp(${filters.to_genesis_timestamp})`
+                ? sql`AND i.timestamp <= ${filters.to_genesis_timestamp}`
                 : sql``
             }
             ${

@@ -126,7 +126,7 @@ export class CountsPgStore extends BasePgStoreModule {
     const result = await this.sql<{ count: number }[]>`
       SELECT COALESCE(SUM(count), 0)::int AS count
       FROM counts_by_sat_rarity
-      WHERE sat_rarity IN ${this.sql(satRarity)}
+      WHERE rarity IN ${this.sql(satRarity)}
     `;
     return result[0].count;
   }
