@@ -249,6 +249,39 @@ export async function inscriptionReveal(sql: PgSqlClient, reveal: TestOrdinalsIn
     inscription_count_accum: 1,
     timestamp: reveal.timestamp,
   });
+  await sql`
+    INSERT INTO counts_by_mime_type ${sql({ mime_type: reveal.mime_type, count: 1 })}
+    ON CONFLICT (mime_type) DO UPDATE SET
+      count = counts_by_mime_type.count + EXCLUDED.count
+  `;
+  await sql`
+    INSERT INTO counts_by_sat_rarity ${sql({ rarity: reveal.rarity, count: 1 })}
+    ON CONFLICT (rarity) DO UPDATE SET
+      count = counts_by_sat_rarity.count + EXCLUDED.count
+  `;
+  await sql`
+    INSERT INTO counts_by_type ${sql({
+      type: parseInt(reveal.classic_number) >= 0 ? 'blessed' : 'cursed',
+      count: 1,
+    })}
+    ON CONFLICT (type) DO UPDATE SET
+      count = counts_by_type.count + EXCLUDED.count
+  `;
+  await sql`
+    INSERT INTO counts_by_address ${sql({ address: reveal.address, count: 1 })}
+    ON CONFLICT (address) DO UPDATE SET
+      count = counts_by_address.count + EXCLUDED.count
+  `;
+  await sql`
+    INSERT INTO counts_by_genesis_address ${sql({ address: reveal.address, count: 1 })}
+    ON CONFLICT (address) DO UPDATE SET
+      count = counts_by_genesis_address.count + EXCLUDED.count
+  `;
+  await sql`
+    INSERT INTO counts_by_recursive ${sql({ recursive: reveal.recursive, count: 1 })}
+    ON CONFLICT (recursive) DO UPDATE SET
+      count = counts_by_recursive.count + EXCLUDED.count
+  `;
 }
 
 export type TestOrdinalsInscriptionTransfer = TestOrdinalsLocationsRow &

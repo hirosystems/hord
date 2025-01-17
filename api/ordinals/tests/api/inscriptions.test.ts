@@ -1626,7 +1626,7 @@ describe('/inscriptions', () => {
       });
       expect(response1.statusCode).toBe(200);
       const responseJson1 = response1.json();
-      // expect(responseJson1.total).toBe(2);
+      expect(responseJson1.total).toBe(2);
       expect(responseJson1.results).toStrictEqual([
         {
           address: 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td',
@@ -1766,7 +1766,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(1);
+        expect(responseJson1.total).toBe(1);
         expect(responseJson1.results.length).toBe(1);
         const result1 = {
           address: 'bc1pscktlmn99gyzlvymvrezh6vwd0l4kg06tg5rvssw0czg8873gz5sdkteqj',
@@ -1806,7 +1806,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(1);
+        expect(responseJson2.total).toBe(1);
         expect(responseJson2.results.length).toBe(1);
         const result2 = {
           address: 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td',
@@ -1846,7 +1846,7 @@ describe('/inscriptions', () => {
         });
         expect(response3.statusCode).toBe(200);
         const responseJson3 = response3.json();
-        // expect(responseJson3.total).toBe(2);
+        expect(responseJson3.total).toBe(2);
         expect(responseJson3.results.length).toBe(2);
         expect(responseJson3.results[0]).toStrictEqual(result2);
         expect(responseJson3.results[1]).toStrictEqual(result1);
@@ -1926,7 +1926,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(1);
+        expect(responseJson1.total).toBe(1);
         expect(responseJson1.results.length).toBe(1);
         expect(responseJson1.results[0].sat_rarity).toBe('common');
 
@@ -1936,7 +1936,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(1);
+        expect(responseJson2.total).toBe(1);
         expect(responseJson2.results[0].sat_rarity).toBe('mythic');
 
         const response3 = await fastify.inject({
@@ -1945,7 +1945,7 @@ describe('/inscriptions', () => {
         });
         expect(response3.statusCode).toBe(200);
         const responseJson3 = response3.json();
-        // expect(responseJson3.total).toBe(2);
+        expect(responseJson3.total).toBe(2);
       });
 
       test('index filtered by inscription id', async () => {
@@ -2440,7 +2440,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(1);
+        expect(responseJson2.total).toBe(1);
         expect(responseJson2.results.length).toBe(1);
         expect(responseJson2.results[0].genesis_timestamp).toBe(1677731361000);
 
@@ -2450,7 +2450,7 @@ describe('/inscriptions', () => {
         });
         expect(response3.statusCode).toBe(200);
         const responseJson3 = response3.json();
-        // expect(responseJson3.total).toBe(1);
+        expect(responseJson3.total).toBe(1);
         expect(responseJson3.results.length).toBe(1);
         expect(responseJson3.results[0].genesis_timestamp).toBe(1675312161000);
       });
@@ -2875,7 +2875,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(1);
+        expect(responseJson1.total).toBe(1);
         expect(responseJson1.results.length).toBe(1);
         expect(responseJson1.results[0].address).toBe(
           'bc1pscktlmn99gyzlvymvrezh6vwd0l4kg06tg5rvssw0czg8873gz5sdkteqj'
@@ -2887,7 +2887,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(2);
+        expect(responseJson2.total).toBe(2);
         expect(responseJson2.results.length).toBe(2);
       });
 
@@ -2971,7 +2971,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(1);
+        expect(responseJson1.total).toBe(1);
         expect(responseJson1.results.length).toBe(1);
         expect(responseJson1.results[0].id).toBe(
           '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0'
@@ -2983,7 +2983,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(1);
+        expect(responseJson2.total).toBe(1);
         expect(responseJson2.results.length).toBe(1);
         expect(responseJson2.results[0].id).toBe(
           '9f4a9b73b0713c5da01c0a47f97c6c001af9028d6bdd9e264dfacbc4e6790201i0'
@@ -3064,7 +3064,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(1);
+        expect(responseJson1.total).toBe(1);
         expect(responseJson1.results.length).toBe(1);
         expect(responseJson1.results[0].id).toBe(
           '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0'
@@ -3076,7 +3076,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(1);
+        expect(responseJson2.total).toBe(1);
         expect(responseJson2.results.length).toBe(1);
         expect(responseJson2.results[0].id).toBe(
           '9f4a9b73b0713c5da01c0a47f97c6c001af9028d6bdd9e264dfacbc4e6790201i0'
@@ -3157,7 +3157,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(1);
+        expect(responseJson1.total).toBe(1);
         expect(responseJson1.results.length).toBe(1);
         expect(responseJson1.results[0].genesis_address).toBe(
           'bc1pscktlmn99gyzlvymvrezh6vwd0l4kg06tg5rvssw0czg8873gz5sdkteqj'
@@ -3169,7 +3169,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(2);
+        expect(responseJson2.total).toBe(2);
         expect(responseJson2.results.length).toBe(2);
       });
     });
@@ -3282,7 +3282,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(3);
+        expect(responseJson1.total).toBe(3);
         expect(responseJson1.results[0].number).toStrictEqual(0);
         expect(responseJson1.results[1].number).toStrictEqual(1);
         expect(responseJson1.results[2].number).toStrictEqual(2);
@@ -3293,7 +3293,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(3);
+        expect(responseJson2.total).toBe(3);
         expect(responseJson2.results[0].number).toStrictEqual(2);
         expect(responseJson2.results[1].number).toStrictEqual(1);
         expect(responseJson2.results[2].number).toStrictEqual(0);
@@ -3406,7 +3406,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(3);
+        expect(responseJson1.total).toBe(3);
         expect(responseJson1.results[0].sat_rarity).toStrictEqual('common');
         expect(responseJson1.results[1].sat_rarity).toStrictEqual('epic');
         expect(responseJson1.results[2].sat_rarity).toStrictEqual('mythic');
@@ -3417,7 +3417,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(3);
+        expect(responseJson2.total).toBe(3);
         expect(responseJson2.results[0].sat_rarity).toStrictEqual('mythic');
         expect(responseJson2.results[1].sat_rarity).toStrictEqual('epic');
         expect(responseJson2.results[2].sat_rarity).toStrictEqual('common');
@@ -3530,7 +3530,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(3);
+        expect(responseJson1.total).toBe(3);
         expect(responseJson1.results[0].sat_ordinal).toStrictEqual('0');
         expect(responseJson1.results[1].sat_ordinal).toStrictEqual('257418248345364');
         expect(responseJson1.results[2].sat_ordinal).toStrictEqual('1050000000000000');
@@ -3541,7 +3541,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(3);
+        expect(responseJson2.total).toBe(3);
         expect(responseJson2.results[0].sat_ordinal).toStrictEqual('1050000000000000');
         expect(responseJson2.results[1].sat_ordinal).toStrictEqual('257418248345364');
         expect(responseJson2.results[2].sat_ordinal).toStrictEqual('0');
@@ -3654,7 +3654,7 @@ describe('/inscriptions', () => {
         });
         expect(response1.statusCode).toBe(200);
         const responseJson1 = response1.json();
-        // expect(responseJson1.total).toBe(3);
+        expect(responseJson1.total).toBe(3);
         expect(responseJson1.results[0].genesis_block_height).toStrictEqual(778575);
         expect(responseJson1.results[1].genesis_block_height).toStrictEqual(778576);
         expect(responseJson1.results[2].genesis_block_height).toStrictEqual(778577);
@@ -3665,7 +3665,7 @@ describe('/inscriptions', () => {
         });
         expect(response2.statusCode).toBe(200);
         const responseJson2 = response2.json();
-        // expect(responseJson2.total).toBe(3);
+        expect(responseJson2.total).toBe(3);
         expect(responseJson2.results[0].genesis_block_height).toStrictEqual(778577);
         expect(responseJson2.results[1].genesis_block_height).toStrictEqual(778576);
         expect(responseJson2.results[2].genesis_block_height).toStrictEqual(778575);
