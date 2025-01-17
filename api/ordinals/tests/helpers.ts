@@ -156,14 +156,14 @@ async function insertTestInscriptionTransfer(
   await sql`INSERT INTO inscription_transfers ${sql(row)}`;
 }
 
-type TestOrdinalsCountsByBlockRow = {
+export type TestOrdinalsCountsByBlockRow = {
   block_height: string;
   block_hash: string;
   inscription_count: number;
   inscription_count_accum: number;
   timestamp: number;
 };
-async function insertTestCountsByBlock(sql: PgSqlClient, row: TestOrdinalsCountsByBlockRow) {
+export async function insertTestCountsByBlock(sql: PgSqlClient, row: TestOrdinalsCountsByBlockRow) {
   await sql`
     INSERT INTO counts_by_block ${sql(row)}
     ON CONFLICT (block_height) DO UPDATE SET
