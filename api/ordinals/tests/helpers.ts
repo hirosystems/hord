@@ -183,6 +183,10 @@ export async function insertTestInscriptionRecursion(
   await sql`INSERT INTO inscription_recursions ${sql(row)}`;
 }
 
+export async function updateTestChainTip(sql: PgSqlClient, blockHeight: number) {
+  await sql`UPDATE chain_tip SET block_height = ${blockHeight}`;
+}
+
 export type TestOrdinalsInscriptionReveal = TestOrdinalsInscriptionsRow &
   TestOrdinalsLocationsRow &
   TestOrdinalsSatoshisRow &
