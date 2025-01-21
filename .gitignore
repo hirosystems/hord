@@ -222,3 +222,7 @@ Cargo.lock
 !.yarn/versions
 
 *.node
+
+# Mutation Testing
+mutants.out/
+mutants.out.old/
