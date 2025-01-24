@@ -12,8 +12,6 @@
     "test": "jest --runInBand",
     "test:brc-20": "npm run test -- ./tests/brc-20/",
     "test:api": "npm run test -- ./tests/api/",
-    "test:ordhook": "npm run test -- ./tests/ordhook/",
-    "migrate": "ts-node node_modules/.bin/node-pg-migrate -j ts",
     "lint:eslint": "eslint . --ext .js,.jsx,.ts,.tsx -f unix",
     "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts",
     "lint:unused-exports": "ts-unused-exports tsconfig.json --showLineNumber --excludePathsFromReport=migrations/* --excludePathsFromReport=util/*",
