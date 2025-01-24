@@ -156,7 +156,7 @@ async function insertTestInscriptionTransfer(
   await sql`INSERT INTO inscription_transfers ${sql(row)}`;
 }
 
-export type TestOrdinalsCountsByBlockRow = {
+type TestOrdinalsCountsByBlockRow = {
   block_height: string;
   block_hash: string;
   inscription_count: number;
@@ -172,7 +172,7 @@ export async function insertTestCountsByBlock(sql: PgSqlClient, row: TestOrdinal
   `;
 }
 
-export type TestOrdinalsInscriptionRecursionsRow = {
+type TestOrdinalsInscriptionRecursionsRow = {
   inscription_id: string;
   ref_inscription_id: string;
 };
@@ -187,7 +187,7 @@ export async function updateTestChainTip(sql: PgSqlClient, blockHeight: number) 
   await sql`UPDATE chain_tip SET block_height = ${blockHeight}`;
 }
 
-export type TestOrdinalsInscriptionReveal = TestOrdinalsInscriptionsRow &
+type TestOrdinalsInscriptionReveal = TestOrdinalsInscriptionsRow &
   TestOrdinalsLocationsRow &
   TestOrdinalsSatoshisRow &
   TestOrdinalsCurrentLocationsRow;
@@ -288,7 +288,7 @@ export async function inscriptionReveal(sql: PgSqlClient, reveal: TestOrdinalsIn
   `;
 }
 
-export type TestOrdinalsInscriptionTransfer = TestOrdinalsLocationsRow &
+type TestOrdinalsInscriptionTransfer = TestOrdinalsLocationsRow &
   TestOrdinalsCurrentLocationsRow &
   TestOrdinalsInscriptionTransfersRow;
 export async function inscriptionTransfer(
@@ -374,7 +374,7 @@ type TestBrc20BalancesRow = {
   total_balance: string;
 };
 
-export type TestBrc20TokenDeploy = TestBrc20TokensRow & TestBrc20OperationsRow;
+type TestBrc20TokenDeploy = TestBrc20TokensRow & TestBrc20OperationsRow;
 export async function brc20TokenDeploy(sql: PgSqlClient, deploy: TestBrc20TokenDeploy) {
   const token: TestBrc20TokensRow = {
     ticker: deploy.ticker,
@@ -497,55 +497,3 @@ export function* incrementing(
     current += step;
   }
 }
-
-// export async function deployAndMintPEPE(db: PgStore, address: string) {
-//   await db.updateInscriptions(
-//     new TestChainhookPayloadBuilder()
-//       .apply()
-//       .block({
-//         height: BRC20_GENESIS_BLOCK,
-//         hash: '00000000000000000002a90330a99f67e3f01eb2ce070b45930581e82fb7a91d',
-//       })
-//       .transaction({
-//         hash: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dc',
-//       })
-//       .brc20(
-//         {
-//           deploy: {
-//             tick: 'pepe',
-//             max: '250000',
-//             dec: '18',
-//             lim: '250000',
-//             inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
-//             address,
-//             self_mint: false,
-//           },
-//         },
-//         { inscription_number: 0 }
-//       )
-//       .build()
-//   );
-//   await db.updateInscriptions(
-//     new TestChainhookPayloadBuilder()
-//       .apply()
-//       .block({
-//         height: BRC20_GENESIS_BLOCK + 1,
-//         hash: '0000000000000000000098d8f2663891d439f6bb7de230d4e9f6bcc2e85452bf',
-//       })
-//       .transaction({
-//         hash: '3b55f624eaa4f8de6c42e0c490176b67123a83094384f658611faf7bfb85dd0f',
-//       })
-//       .brc20(
-//         {
-//           mint: {
-//             tick: 'pepe',
-//             amt: '10000',
-//             inscription_id: '3b55f624eaa4f8de6c42e0c490176b67123a83094384f658611faf7bfb85dd0fi0',
-//             address,
-//           },
-//         },
-//         { inscription_number: 1 }
-//       )
-//       .build()
-//   );
-// }
