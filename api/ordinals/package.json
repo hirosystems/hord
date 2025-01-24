@@ -13,8 +13,8 @@
     "test:brc-20": "npm run test -- ./tests/brc-20/",
     "test:api": "npm run test -- ./tests/api/",
     "lint:eslint": "eslint . --ext .js,.jsx,.ts,.tsx -f unix",
-    "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts",
-    "lint:unused-exports": "ts-unused-exports tsconfig.json --showLineNumber --excludePathsFromReport=migrations/* --excludePathsFromReport=util/*",
+    "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts",
+    "lint:unused-exports": "ts-unused-exports tsconfig.json --showLineNumber --excludePathsFromReport=util/*",
     "generate:openapi": "rimraf ./tmp && node -r ts-node/register ./util/openapi-generator.ts",
     "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml",
     "generate:git-info": "rimraf .git-info && node_modules/.bin/api-toolkit-git-info",
@@ -65,7 +65,6 @@
     "env-schema": "^5.2.0",
     "fastify": "^4.3.0",
     "fastify-metrics": "^10.2.0",
-    "node-pg-migrate": "^6.2.2",
     "pino": "^8.10.0",
     "postgres": "^3.3.4",
     "undici": "^5.8.0"
