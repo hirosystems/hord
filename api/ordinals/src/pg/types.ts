@@ -39,12 +39,6 @@ export type DbFullyLocatedInscriptionResult = {
   delegate: string | null;
 };
 
-export enum DbLocationTransferType {
-  transferred = 'transferred',
-  spentInFees = 'spent_in_fees',
-  burnt = 'burnt',
-}
-
 export type DbLocation = {
   genesis_id: string;
   block_height: string;
