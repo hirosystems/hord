@@ -1,4 +1,5 @@
 {
+  "extends": "semantic-release-monorepo",
   "branches": [
     "+([0-9])?(.{+([0-9]),x}).x",
     "master",
@@ -10,10 +11,6 @@
     },
     {
       "name": "alpha",
-      "prerelease": true
-    },
-    {
-      "name": "ordhook-pg",
       "prerelease": true
     }
   ],
