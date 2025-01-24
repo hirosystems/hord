@@ -448,6 +448,37 @@ export async function brc20Operation(sql: PgSqlClient, operation: TestBrc20Opera
     ON CONFLICT (address, operation) DO UPDATE SET
       count = counts_by_address_operation.count + EXCLUDED.count
   `;
+  const balance: TestBrc20BalancesRow = {
+    ticker: operation.ticker,
+    address: operation.address,
+    avail_balance: '0',
+    trans_balance: '0',
+    total_balance: '0',
+  };
+  switch (operation.operation) {
+    case 'mint':
+    case 'transfer_receive':
+      balance.avail_balance = operation.amount;
+      balance.total_balance = operation.amount;
+      break;
+    case 'transfer':
+      balance.avail_balance = `-${operation.amount}`;
+      balance.trans_balance = operation.amount;
+      break;
+    case 'transfer_send':
+      balance.trans_balance = `-${operation.amount}`;
+      balance.total_balance = `-${operation.amount}`;
+      break;
+    default:
+      break;
+  }
+  await sql`
+    INSERT INTO balances ${sql(balance)}
+    ON CONFLICT (ticker, address) DO UPDATE SET
+      avail_balance = balances.avail_balance + EXCLUDED.avail_balance,
+      trans_balance = balances.trans_balance + EXCLUDED.trans_balance,
+      total_balance = balances.avail_balance + EXCLUDED.total_balance
+  `;
 }
 
 /** Generate a random hash like string for testing */

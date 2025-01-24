@@ -71,6 +71,8 @@
         "--testTimeout=3600000",
         "--runInBand",
         "--no-cache",
+        "-t",
+        "BRC-20 API"
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",

@@ -1254,98 +1254,150 @@ describe('BRC-20 API', () => {
     });
   });
 
-  // describe('/brc-20/token/holders', () => {
-  //   test('displays holders for token', async () => {
-  //     const address = 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td';
-  //     await deployAndMintPEPE(db, address);
-  //     await db.updateInscriptions(
-  //       new TestChainhookPayloadBuilder()
-  //         .apply()
-  //         .block({
-  //           height: 767430 + 2,
-  //           hash: '0000000000000000000034dd2daec375371800da441b17651459b2220cbc1a6e',
-  //         })
-  //         .transaction({
-  //           hash: '633648e0e1ddcab8dea0496a561f2b08c486ae619b5634d7bb55d7f0cd32ef16',
-  //         })
-  //         .brc20(
-  //           {
-  //             mint: {
-  //               inscription_id:
-  //                 '633648e0e1ddcab8dea0496a561f2b08c486ae619b5634d7bb55d7f0cd32ef16i0',
-  //               tick: 'pepe',
-  //               address: 'bc1qp9jgp9qtlhgvwjnxclj6kav6nr2fq09c206pyl',
-  //               amt: '2000',
-  //             },
-  //           },
-  //           { inscription_number: 2 }
-  //         )
-  //         .build()
-  //     );
+  describe('/brc-20/token/holders', () => {
+    test('displays holders for token', async () => {
+      const inscriptionNumbers = incrementing(0);
+      const blockHeights = incrementing(767430);
+      const addressA = 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td';
+      const addressB = 'bc1qp9jgp9qtlhgvwjnxclj6kav6nr2fq09c206pyl';
 
-  //     const response = await fastify.inject({
-  //       method: 'GET',
-  //       url: `/ordinals/brc-20/tokens/pepe/holders`,
-  //     });
-  //     expect(response.statusCode).toBe(200);
-  //     const json = response.json();
-  //     expect(json.total).toBe(2);
-  //     expect(json.results).toStrictEqual([
-  //       {
-  //         address: 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td',
-  //         overall_balance: '10000.000000000000000000',
-  //       },
-  //       {
-  //         address: 'bc1qp9jgp9qtlhgvwjnxclj6kav6nr2fq09c206pyl',
-  //         overall_balance: '2000.000000000000000000',
-  //       },
-  //     ]);
-  //   });
+      let number = inscriptionNumbers.next().value;
+      let transferHash = randomHash();
+      let blockHash = randomHash();
+      await brc20TokenDeploy(brc20Db.sql, {
+        ticker: 'pepe',
+        display_ticker: 'pepe',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: number.toString(),
+        block_height: blockHeights.next().value.toString(),
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        address: addressA,
+        max: '21000000000000000000000000',
+        limit: '21000000000000000000000000',
+        decimals: 18,
+        self_mint: false,
+        minted_supply: '0',
+        tx_count: 1,
+        timestamp: 1677803510000,
+        operation: 'deploy',
+        ordinal_number: '20000',
+        output: `${transferHash}:0`,
+        offset: '0',
+        to_address: null,
+        amount: '0',
+      });
 
-  //   test('shows empty list on token with no holders', async () => {
-  //     await db.updateInscriptions(
-  //       new TestChainhookPayloadBuilder()
-  //         .apply()
-  //         .block({
-  //           height: 767430,
-  //           hash: '00000000000000000002a90330a99f67e3f01eb2ce070b45930581e82fb7a91d',
-  //         })
-  //         .transaction({
-  //           hash: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dc',
-  //         })
-  //         .brc20(
-  //           {
-  //             deploy: {
-  //               inscription_id:
-  //                 '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
-  //               tick: 'pepe',
-  //               max: '250000',
-  //               lim: '250000',
-  //               dec: '18',
-  //               address: 'bc1qp9jgp9qtlhgvwjnxclj6kav6nr2fq09c206pyl',
-  //               self_mint: false,
-  //             },
-  //           },
-  //           { inscription_number: 0 }
-  //         )
-  //         .build()
-  //     );
-  //     const response = await fastify.inject({
-  //       method: 'GET',
-  //       url: `/ordinals/brc-20/tokens/pepe/holders`,
-  //     });
-  //     expect(response.statusCode).toBe(200);
-  //     const json = response.json();
-  //     expect(json.total).toBe(0);
-  //     expect(json.results).toStrictEqual([]);
-  //   });
+      number = inscriptionNumbers.next().value;
+      transferHash = randomHash();
+      blockHash = randomHash();
+      await brc20Operation(brc20Db.sql, {
+        ticker: 'pepe',
+        operation: 'mint',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: number.toString(),
+        ordinal_number: '200000',
+        block_height: blockHeights.next().value.toString(),
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        output: `${transferHash}:0`,
+        offset: '0',
+        timestamp: 1677803510000,
+        address: addressA,
+        to_address: null,
+        amount: '10000000000000000000000',
+      });
 
-  //   test('shows 404 on token not found', async () => {
-  //     const response = await fastify.inject({
-  //       method: 'GET',
-  //       url: `/ordinals/brc-20/tokens/pepe/holders`,
-  //     });
-  //     expect(response.statusCode).toBe(404);
-  //   });
-  // });
+      number = inscriptionNumbers.next().value;
+      transferHash = randomHash();
+      blockHash = randomHash();
+      await brc20Operation(brc20Db.sql, {
+        ticker: 'pepe',
+        operation: 'mint',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: number.toString(),
+        ordinal_number: '200000',
+        block_height: blockHeights.next().value.toString(),
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        output: `${transferHash}:0`,
+        offset: '0',
+        timestamp: 1677803510000,
+        address: addressB,
+        to_address: null,
+        amount: '2000000000000000000000',
+      });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/tokens/pepe/holders`,
+      });
+      expect(response.statusCode).toBe(200);
+      const json = response.json();
+      expect(json.total).toBe(2);
+      expect(json.results).toStrictEqual([
+        {
+          address: addressA,
+          overall_balance: '10000.000000000000000000',
+        },
+        {
+          address: addressB,
+          overall_balance: '2000.000000000000000000',
+        },
+      ]);
+    });
+
+    test('shows empty list on token with no holders', async () => {
+      const inscriptionNumbers = incrementing(0);
+      const blockHeights = incrementing(767430);
+      const addressA = 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td';
+
+      const number = inscriptionNumbers.next().value;
+      const transferHash = randomHash();
+      const blockHash = randomHash();
+      await brc20TokenDeploy(brc20Db.sql, {
+        ticker: 'pepe',
+        display_ticker: 'pepe',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: number.toString(),
+        block_height: blockHeights.next().value.toString(),
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        address: addressA,
+        max: '21000000000000000000000000',
+        limit: '21000000000000000000000000',
+        decimals: 18,
+        self_mint: false,
+        minted_supply: '0',
+        tx_count: 1,
+        timestamp: 1677803510000,
+        operation: 'deploy',
+        ordinal_number: '20000',
+        output: `${transferHash}:0`,
+        offset: '0',
+        to_address: null,
+        amount: '0',
+      });
+      const response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/tokens/pepe/holders`,
+      });
+      expect(response.statusCode).toBe(200);
+      const json = response.json();
+      expect(json.total).toBe(0);
+      expect(json.results).toStrictEqual([]);
+    });
+
+    test('shows 404 on token not found', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/tokens/pepe/holders`,
+      });
+      expect(response.statusCode).toBe(404);
+    });
+  });
 });
