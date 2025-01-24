@@ -331,6 +331,125 @@ export async function inscriptionTransfer(
   });
 }
 
+type TestBrc20OperationsRow = {
+  ticker: string;
+  operation: string;
+  inscription_id: string;
+  inscription_number: string;
+  ordinal_number: string;
+  block_height: string;
+  block_hash: string;
+  tx_id: string;
+  tx_index: number;
+  output: string;
+  offset: string;
+  timestamp: number;
+  address: string;
+  to_address: string | null;
+  amount: string;
+};
+type TestBrc20TokensRow = {
+  ticker: string;
+  display_ticker: string;
+  inscription_id: string;
+  inscription_number: string;
+  block_height: string;
+  block_hash: string;
+  tx_id: string;
+  tx_index: number;
+  address: string;
+  max: string;
+  limit: string;
+  decimals: number;
+  self_mint: boolean;
+  minted_supply: string;
+  tx_count: number;
+  timestamp: number;
+};
+type TestBrc20BalancesRow = {
+  ticker: string;
+  address: string;
+  avail_balance: string;
+  trans_balance: string;
+  total_balance: string;
+};
+
+export type TestBrc20TokenDeploy = TestBrc20TokensRow & TestBrc20OperationsRow;
+export async function brc20TokenDeploy(sql: PgSqlClient, deploy: TestBrc20TokenDeploy) {
+  const token: TestBrc20TokensRow = {
+    ticker: deploy.ticker,
+    display_ticker: deploy.display_ticker,
+    inscription_id: deploy.inscription_id,
+    inscription_number: deploy.inscription_number,
+    block_height: deploy.block_height,
+    block_hash: deploy.block_hash,
+    tx_id: deploy.tx_id,
+    tx_index: deploy.tx_index,
+    address: deploy.address,
+    max: deploy.max,
+    limit: deploy.limit,
+    decimals: deploy.decimals,
+    self_mint: deploy.self_mint,
+    minted_supply: deploy.minted_supply,
+    tx_count: deploy.tx_count,
+    timestamp: deploy.timestamp,
+  };
+  await sql`INSERT INTO tokens ${sql(token)}`;
+  const op: TestBrc20OperationsRow = {
+    ticker: deploy.ticker,
+    operation: 'deploy',
+    inscription_id: deploy.inscription_id,
+    inscription_number: deploy.inscription_number,
+    ordinal_number: deploy.ordinal_number,
+    block_height: deploy.block_height,
+    block_hash: deploy.block_hash,
+    tx_id: deploy.tx_id,
+    tx_index: deploy.tx_index,
+    output: deploy.output,
+    offset: deploy.offset,
+    timestamp: deploy.timestamp,
+    address: deploy.address,
+    to_address: deploy.to_address,
+    amount: deploy.amount,
+  };
+  await sql`INSERT INTO operations ${sql(op)}`;
+  await sql`
+    INSERT INTO counts_by_operation ${sql({ operation: 'deploy', count: 1 })}
+    ON CONFLICT (operation) DO UPDATE SET
+      count = counts_by_operation.count + EXCLUDED.count
+  `;
+  await sql`
+    INSERT INTO counts_by_address_operation ${sql({
+      address: deploy.address,
+      operation: 'deploy',
+      count: 1,
+    })}
+    ON CONFLICT (address, operation) DO UPDATE SET
+      count = counts_by_address_operation.count + EXCLUDED.count
+  `;
+}
+
+export async function brc20Operation(sql: PgSqlClient, operation: TestBrc20OperationsRow) {
+  await sql`INSERT INTO operations ${sql(operation)}`;
+  if (operation.operation != 'transfer_receive') {
+    await sql`UPDATE tokens SET tx_count = tx_count + 1 WHERE ticker = ${operation.ticker}`;
+  }
+  await sql`
+    INSERT INTO counts_by_operation ${sql({ operation: operation.operation, count: 1 })}
+    ON CONFLICT (operation) DO UPDATE SET
+      count = counts_by_operation.count + EXCLUDED.count
+  `;
+  await sql`
+    INSERT INTO counts_by_address_operation ${sql({
+      address: operation.address,
+      operation: operation.operation,
+      count: 1,
+    })}
+    ON CONFLICT (address, operation) DO UPDATE SET
+      count = counts_by_address_operation.count + EXCLUDED.count
+  `;
+}
+
 /** Generate a random hash like string for testing */
 export const randomHash = () =>
   [...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
