@@ -1,3 +1,10 @@
+## [3.0.0-beta.4](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.3...v3.0.0-beta.4) (2025-01-28)
+
+
+### Bug Fixes
+
+* **brc20:** add to_address index to operations table ([#390](https://github.com/hirosystems/ordhook/issues/390)) ([67c6035](https://github.com/hirosystems/ordhook/commit/67c6035828994dd72e7ffa72b4e405c04465acb3))
+
 ## [3.0.0-beta.3](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.2...v3.0.0-beta.3) (2025-01-14)
 
 
