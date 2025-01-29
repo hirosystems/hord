@@ -27,6 +27,10 @@ import {
 
 export const DEFAULT_API_LIMIT = 20;
 
+function parseTimestamp(timestamp: number): number {
+  return timestamp * 1000;
+}
+
 export function parseDbInscriptions(
   items: DbFullyLocatedInscriptionResult[]
 ): InscriptionResponseType[] {
@@ -39,7 +43,7 @@ export function parseDbInscriptions(
     genesis_block_hash: i.genesis_block_hash,
     genesis_tx_id: i.genesis_tx_id,
     genesis_fee: i.genesis_fee.toString(),
-    genesis_timestamp: i.genesis_timestamp.valueOf(),
+    genesis_timestamp: parseTimestamp(i.genesis_timestamp),
     tx_id: i.tx_id,
     location: `${i.output}:${i.offset}`,
     output: i.output,
@@ -51,7 +55,7 @@ export function parseDbInscriptions(
     mime_type: i.mime_type,
     content_type: i.content_type,
     content_length: parseInt(i.content_length),
-    timestamp: i.timestamp.valueOf(),
+    timestamp: parseTimestamp(i.timestamp),
     curse_type: i.curse_type,
     recursive: i.recursive,
     recursion_refs: i.recursion_refs?.split(',') ?? null,
@@ -75,7 +79,7 @@ export function parseInscriptionLocations(items: DbLocation[]): InscriptionLocat
     output: i.output,
     value: i.value,
     offset: i.offset,
-    timestamp: i.timestamp.valueOf(),
+    timestamp: parseTimestamp(i.timestamp),
   }));
 }
 
@@ -94,7 +98,7 @@ export function parseBlockTransfers(
       output: i.from_output,
       value: i.from_value,
       offset: i.from_offset,
-      timestamp: i.from_timestamp.valueOf(),
+      timestamp: parseTimestamp(i.from_timestamp),
     },
     to: {
       block_height: parseInt(i.to_block_height),
@@ -105,7 +109,7 @@ export function parseBlockTransfers(
       output: i.to_output,
       value: i.to_value,
       offset: i.to_offset,
-      timestamp: i.to_timestamp.valueOf(),
+      timestamp: parseTimestamp(i.to_timestamp),
     },
   }));
 }
@@ -121,7 +125,7 @@ export function parseBrc20Tokens(items: DbBrc20Token[]): Brc20TokenResponse[] {
     max_supply: decimals(i.max, i.decimals),
     mint_limit: i.limit ? decimals(i.limit, i.decimals) : null,
     decimals: i.decimals,
-    deploy_timestamp: i.timestamp.valueOf(),
+    deploy_timestamp: parseTimestamp(i.timestamp),
     minted_supply: decimals(i.minted_supply, i.decimals),
     tx_count: parseInt(i.tx_count),
     self_mint: i.self_mint,
@@ -156,7 +160,7 @@ export function parseBrc20Activities(items: DbBrc20Activity[]): Brc20ActivityRes
       location: `${i.output}:${i.offset}`,
       block_hash: i.block_hash,
       block_height: parseInt(i.block_height),
-      timestamp: i.timestamp.valueOf(),
+      timestamp: parseTimestamp(i.timestamp),
     };
     switch (i.operation) {
       case DbBrc20EventOperation.deploy: {
