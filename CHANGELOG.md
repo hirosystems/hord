@@ -1,3 +1,10 @@
+## [3.0.0-beta.5](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.4...v3.0.0-beta.5) (2025-01-29)
+
+
+### Bug Fixes
+
+* store inscription content as is ([#391](https://github.com/hirosystems/ordhook/issues/391)) ([3f10607](https://github.com/hirosystems/ordhook/commit/3f10607ba9ef1d6b0d6fd68f9779031e239c0596))
+
 ## [3.0.0-beta.4](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.3...v3.0.0-beta.4) (2025-01-28)
 
 
