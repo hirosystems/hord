@@ -1,4 +1,4 @@
-use chainhook_sdk::bitcoincore_rpc_json::bitcoin::Txid;
+use chainhook_sdk::bitcoin::hash_types::Txid;
 use chainhook_sdk::indexer::bitcoin::BitcoinTransactionFullBreakdown;
 use chainhook_sdk::indexer::bitcoin::{standardize_bitcoin_block, BitcoinBlockFullBreakdown};
 use chainhook_sdk::types::{
@@ -14,7 +14,7 @@ use std::str::FromStr;
 use crate::config::Config;
 use crate::core::meta_protocols::brc20::brc20_activation_height;
 use crate::core::meta_protocols::brc20::parser::{parse_brc20_operation, ParsedBrc20Operation};
-use crate::ord::envelope::{Envelope, ParsedEnvelope, RawEnvelope};
+use crate::ord::envelope::{Envelope, ParsedEnvelope};
 use crate::ord::inscription::Inscription;
 use crate::ord::inscription_id::InscriptionId;
 use crate::try_warn;
@@ -27,7 +27,7 @@ pub fn parse_inscriptions_from_witness(
 ) -> Option<Vec<(OrdinalInscriptionRevealData, Inscription)>> {
     let witness = Witness::from_slice(&witness_bytes);
     let tapscript = witness.tapscript()?;
-    let envelopes: Vec<Envelope<Inscription>> = RawEnvelope::from_tapscript(tapscript, input_index)
+    let envelopes: Vec<Envelope<Inscription>> = Envelope::from_tapscript(tapscript, input_index)
         .ok()?
         .into_iter()
         .map(|e| ParsedEnvelope::from(e))
@@ -64,7 +64,8 @@ pub fn parse_inscriptions_from_witness(
         let mut content_bytes = "0x".to_string();
         content_bytes.push_str(&hex::encode(&inscription_content_bytes));
 
-        let parent = envelope.payload.parent().and_then(|i| Some(i.to_string()));
+        // TODO: Support multiple parents
+        let parent = envelope.payload.parents().first().and_then(|i| Some(i.to_string()));
         let delegate = envelope
             .payload
             .delegate()

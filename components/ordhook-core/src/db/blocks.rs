@@ -1,7 +1,7 @@
 use std::{path::PathBuf, thread::sleep, time::Duration};
 
 use chainhook_sdk::utils::Context;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use rocksdb::{DBPinnableSlice, Options, DB};
 
 use crate::{config::Config, try_error, try_warn};
@@ -141,13 +141,13 @@ pub fn find_pinned_block_bytes_at_block_height<'a>(
     // read_options.fill_cache(true);
     // read_options.set_verify_checksums(false);
     let mut backoff: f64 = 1.0;
-    let mut rng = thread_rng();
+    let mut rng = rng();
     loop {
         match blocks_db.get_pinned(block_height.to_be_bytes()) {
             Ok(Some(res)) => return Some(res),
             _ => {
                 attempt += 1;
-                backoff = 2.0 * backoff + (backoff * rng.gen_range(0.0..1.0));
+                backoff = 2.0 * backoff + (backoff * rng.random_range(0.0..1.0));
                 let duration = std::time::Duration::from_millis((backoff * 1_000.0) as u64);
                 try_warn!(
                     ctx,
@@ -175,14 +175,14 @@ pub fn find_block_bytes_at_block_height<'a>(
     // read_options.fill_cache(true);
     // read_options.set_verify_checksums(false);
     let mut backoff: f64 = 1.0;
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     loop {
         match blocks_db.get(block_height.to_be_bytes()) {
             Ok(Some(res)) => return Some(res),
             _ => {
                 attempt += 1;
-                backoff = 2.0 * backoff + (backoff * rng.gen_range(0.0..1.0));
+                backoff = 2.0 * backoff + (backoff * rng.random_range(0.0..1.0));
                 let duration = std::time::Duration::from_millis((backoff * 1_000.0) as u64);
                 try_warn!(
                     ctx,

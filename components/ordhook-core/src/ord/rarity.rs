@@ -1,99 +1,120 @@
-use std::fmt::{Display, Formatter};
+use std::{fmt::{self, Display, Formatter}, str::FromStr};
 
-use degree::Degree;
-use sat::Sat;
+use super::{degree::Degree, sat::Sat, *};
 
-use super::*;
-
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
+#[derive(
+  Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd
+)]
 pub enum Rarity {
-    Common,
-    Uncommon,
-    Rare,
-    Epic,
-    Legendary,
-    Mythic,
+  Common,
+  Uncommon,
+  Rare,
+  Epic,
+  Legendary,
+  Mythic,
+}
+
+impl Rarity {
+  pub const ALL: [Rarity; 6] = [
+    Rarity::Common,
+    Rarity::Uncommon,
+    Rarity::Rare,
+    Rarity::Epic,
+    Rarity::Legendary,
+    Rarity::Mythic,
+  ];
+
+  pub fn supply(self) -> u64 {
+    match self {
+      Self::Common => 2_099_999_990_760_000,
+      Self::Uncommon => 6_926_535,
+      Self::Rare => 3_432,
+      Self::Epic => 27,
+      Self::Legendary => 5,
+      Self::Mythic => 1,
+    }
+  }
 }
 
 impl From<Rarity> for u8 {
-    fn from(rarity: Rarity) -> Self {
-        rarity as u8
-    }
+  fn from(rarity: Rarity) -> Self {
+    rarity as u8
+  }
 }
 
-// impl TryFrom<u8> for Rarity {
-//   type Error = u8;
+impl TryFrom<u8> for Rarity {
+  type Error = u8;
 
-//   fn try_from(rarity: u8) -> Result<Self, u8> {
-//     match rarity {
-//       0 => Ok(Self::Common),
-//       1 => Ok(Self::Uncommon),
-//       2 => Ok(Self::Rare),
-//       3 => Ok(Self::Epic),
-//       4 => Ok(Self::Legendary),
-//       5 => Ok(Self::Mythic),
-//       n => Err(n),
-//     }
-//   }
-// }
+  fn try_from(rarity: u8) -> Result<Self, u8> {
+    match rarity {
+      0 => Ok(Self::Common),
+      1 => Ok(Self::Uncommon),
+      2 => Ok(Self::Rare),
+      3 => Ok(Self::Epic),
+      4 => Ok(Self::Legendary),
+      5 => Ok(Self::Mythic),
+      n => Err(n),
+    }
+  }
+}
 
 impl Display for Rarity {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Common => "common",
-                Self::Uncommon => "uncommon",
-                Self::Rare => "rare",
-                Self::Epic => "epic",
-                Self::Legendary => "legendary",
-                Self::Mythic => "mythic",
-            }
-        )
-    }
+  fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Common => "common",
+        Self::Uncommon => "uncommon",
+        Self::Rare => "rare",
+        Self::Epic => "epic",
+        Self::Legendary => "legendary",
+        Self::Mythic => "mythic",
+      }
+    )
+  }
 }
 
 impl From<Sat> for Rarity {
-    fn from(sat: Sat) -> Self {
-        let Degree {
-            hour,
-            minute,
-            second,
-            third,
-        } = sat.degree();
+  fn from(sat: Sat) -> Self {
+    let Degree {
+      hour,
+      minute,
+      second,
+      third,
+    } = sat.degree();
 
-        if hour == 0 && minute == 0 && second == 0 && third == 0 {
-            Self::Mythic
-        } else if minute == 0 && second == 0 && third == 0 {
-            Self::Legendary
-        } else if minute == 0 && third == 0 {
-            Self::Epic
-        } else if second == 0 && third == 0 {
-            Self::Rare
-        } else if third == 0 {
-            Self::Uncommon
-        } else {
-            Self::Common
-        }
+    if hour == 0 && minute == 0 && second == 0 && third == 0 {
+      Self::Mythic
+    } else if minute == 0 && second == 0 && third == 0 {
+      Self::Legendary
+    } else if minute == 0 && third == 0 {
+      Self::Epic
+    } else if second == 0 && third == 0 {
+      Self::Rare
+    } else if third == 0 {
+      Self::Uncommon
+    } else {
+      Self::Common
     }
+  }
 }
 
-// impl FromStr for Rarity {
-//   type Err = String;
+impl FromStr for Rarity {
+  type Err = String;
 
-//   fn from_str(s: &str) -> Result<Self, Self::Err> {
-//     match s {
-//       "common" => Ok(Self::Common),
-//       "uncommon" => Ok(Self::Uncommon),
-//       "rare" => Ok(Self::Rare),
-//       "epic" => Ok(Self::Epic),
-//       "legendary" => Ok(Self::Legendary),
-//       "mythic" => Ok(Self::Mythic),
-//       _ => Err(format!("invalid rarity `{s}`")),
-//     }
-//   }
-// }
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s {
+      "common" => Ok(Self::Common),
+      "uncommon" => Ok(Self::Uncommon),
+      "rare" => Ok(Self::Rare),
+      "epic" => Ok(Self::Epic),
+      "legendary" => Ok(Self::Legendary),
+      "mythic" => Ok(Self::Mythic),
+      _ => Err(format!("invalid rarity `{s}`")),
+    }
+  }
+}
 
 // #[cfg(test)]
 // mod tests {
@@ -161,14 +182,7 @@ impl From<Sat> for Rarity {
 
 //   #[test]
 //   fn conversions_with_u8() {
-//     for &expected in &[
-//       Rarity::Common,
-//       Rarity::Uncommon,
-//       Rarity::Rare,
-//       Rarity::Epic,
-//       Rarity::Legendary,
-//       Rarity::Mythic,
-//     ] {
+//     for expected in Rarity::ALL {
 //       let n: u8 = expected.into();
 //       let actual = Rarity::try_from(n).unwrap();
 //       assert_eq!(actual, expected);
@@ -180,5 +194,38 @@ impl From<Sat> for Rarity {
 //   #[test]
 //   fn error() {
 //     assert_eq!("foo".parse::<Rarity>().unwrap_err(), "invalid rarity `foo`");
+//   }
+
+//   #[test]
+//   fn supply() {
+//     let mut i = 0;
+
+//     let mut supply = HashMap::<Rarity, u64>::new();
+
+//     for height in 0.. {
+//       let subsidy = Height(height).subsidy();
+
+//       if subsidy == 0 {
+//         break;
+//       }
+
+//       *supply.entry(Sat(i).rarity()).or_default() += 1;
+
+//       *supply.entry(Rarity::Common).or_default() += subsidy.saturating_sub(1);
+
+//       i += subsidy;
+//     }
+
+//     for (rarity, supply) in &supply {
+//       assert_eq!(
+//         rarity.supply(),
+//         *supply,
+//         "invalid supply for rarity {rarity}"
+//       );
+//     }
+
+//     assert_eq!(supply.values().sum::<u64>(), Sat::SUPPLY);
+
+//     assert_eq!(supply.len(), Rarity::ALL.len());
 //   }
 // }

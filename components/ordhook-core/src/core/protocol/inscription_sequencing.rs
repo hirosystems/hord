@@ -407,7 +407,7 @@ pub async fn augment_block_with_inscriptions(
     let mut sats_overflows = VecDeque::new();
 
     let network = get_bitcoin_network(&block.metadata.network);
-    let coinbase_subsidy = Height(block.block_identifier.index).subsidy();
+    let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
     let coinbase_tx = &block.transactions[0].clone();
     let mut cumulated_fees = 0u64;
 

@@ -51,7 +51,7 @@ pub async fn augment_block_with_transfers(
     ctx: &Context,
 ) -> Result<(), String> {
     let network = get_bitcoin_network(&block.metadata.network);
-    let coinbase_subsidy = Height(block.block_identifier.index).subsidy();
+    let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
     let coinbase_tx = &block.transactions[0].clone();
     let mut cumulated_fees = 0;
     for (tx_index, tx) in block.transactions.iter_mut().enumerate() {

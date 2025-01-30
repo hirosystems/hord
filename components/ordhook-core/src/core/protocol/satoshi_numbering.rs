@@ -25,7 +25,7 @@ pub struct TraversalResult {
 impl TraversalResult {
     pub fn get_ordinal_coinbase_height(&self) -> u64 {
         let sat = Sat(self.ordinal_number);
-        sat.height().n()
+        sat.height().n() as u64
     }
 
     pub fn get_ordinal_coinbase_offset(&self) -> u64 {
