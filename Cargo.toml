@@ -6,3 +6,7 @@ members = [
 ]
 default-members = ["components/ordhook-cli"]
 resolver = "2"
+
+[workspace.dependencies]
+chainhook-sdk = { version = "=0.12.10" }
+# chainhook-sdk = { version = "=0.12.12", path = "../chainhook/components/chainhook-sdk", features = ["zeromq"] }
