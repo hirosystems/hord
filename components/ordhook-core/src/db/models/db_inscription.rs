@@ -30,7 +30,6 @@ pub struct DbInscription {
     pub pointer: Option<PgNumericU64>,
     pub metadata: Option<String>,
     pub metaprotocol: Option<String>,
-    pub parent: Option<String>,
     pub delegate: Option<String>,
     pub timestamp: PgBigIntU32,
 }
@@ -81,7 +80,6 @@ impl DbInscription {
             pointer: reveal.inscription_pointer.map(|p| PgNumericU64(p)),
             metadata: reveal.metadata.as_ref().map(|m| m.to_string()),
             metaprotocol: reveal.metaprotocol.clone(),
-            parent: reveal.parent.clone(),
             delegate: reveal.delegate.clone(),
             timestamp: PgBigIntU32(timestamp),
         }
@@ -111,7 +109,6 @@ impl FromPgRow for DbInscription {
             pointer: row.get("pointer"),
             metadata: row.get("metadata"),
             metaprotocol: row.get("metaprotocol"),
-            parent: row.get("parent"),
             delegate: row.get("delegate"),
             timestamp: row.get("timestamp"),
         }

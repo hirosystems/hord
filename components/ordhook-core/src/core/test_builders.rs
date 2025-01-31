@@ -96,7 +96,7 @@ impl TestTransactionBuilder {
                 delegate: None,
                 metaprotocol: None,
                 metadata: None,
-                parent: None,
+                parents: vec![],
                 ordinal_number: 0,
                 ordinal_block_height: 0,
                 ordinal_offset: 0,

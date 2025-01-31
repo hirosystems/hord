@@ -33,6 +33,9 @@ pub fn parse_inscriptions_from_witness(
         .map(|e| ParsedEnvelope::from(e))
         .collect();
     let mut inscriptions = vec![];
+    // if txid == "8df248387ed10821a403f7de4c08fea24fa626718c57ec99930e35f9676ac3e8" {
+    //     println!("TEST");
+    // }
     for envelope in envelopes.into_iter() {
         let curse_type = if envelope.payload.unrecognized_even_field {
             Some(OrdinalInscriptionCurseType::UnrecognizedEvenField)
@@ -64,8 +67,7 @@ pub fn parse_inscriptions_from_witness(
         let mut content_bytes = "0x".to_string();
         content_bytes.push_str(&hex::encode(&inscription_content_bytes));
 
-        // TODO: Support multiple parents
-        let parent = envelope.payload.parents().first().and_then(|i| Some(i.to_string()));
+        let parents = envelope.payload.parents().iter().map(|i| i.to_string()).collect();
         let delegate = envelope
             .payload
             .delegate()
@@ -80,7 +82,7 @@ pub fn parse_inscriptions_from_witness(
             content_type: envelope
                 .payload
                 .content_type()
-                .unwrap_or("unknown")
+                .unwrap_or("")
                 .to_string(),
             content_bytes,
             content_length: inscription_content_bytes.len(),
@@ -92,7 +94,7 @@ pub fn parse_inscriptions_from_witness(
             inscription_fee: 0,
             inscription_number: OrdinalInscriptionNumber::zero(),
             inscriber_address: None,
-            parent,
+            parents,
             delegate,
             metaprotocol,
             metadata,

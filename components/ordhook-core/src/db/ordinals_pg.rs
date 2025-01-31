@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::models::{
-    DbCurrentLocation, DbInscription, DbInscriptionRecursion, DbLocation, DbSatoshi,
+    DbCurrentLocation, DbInscription, DbInscriptionParent, DbInscriptionRecursion, DbLocation, DbSatoshi
 };
 
 embed_migrations!("../../migrations/ordinals");
@@ -257,7 +257,6 @@ async fn insert_inscriptions<T: GenericClient>(
             params.push(&row.pointer);
             params.push(&row.metadata);
             params.push(&row.metaprotocol);
-            params.push(&row.parent);
             params.push(&row.delegate);
             params.push(&row.timestamp);
         }
@@ -266,9 +265,9 @@ async fn insert_inscriptions<T: GenericClient>(
                 &format!("INSERT INTO inscriptions
                     (inscription_id, ordinal_number, number, classic_number, block_height, block_hash, tx_id, tx_index, address,
                     mime_type, content_type, content_length, content, fee, curse_type, recursive, input_index, pointer, metadata,
-                    metaprotocol, parent, delegate, timestamp)
+                    metaprotocol, delegate, timestamp)
                     VALUES {}
-                    ON CONFLICT (number) DO NOTHING", utils::multi_row_query_param_str(chunk.len(), 23)),
+                    ON CONFLICT (number) DO NOTHING", utils::multi_row_query_param_str(chunk.len(), 22)),
                 &params,
             )
             .await
@@ -303,6 +302,36 @@ async fn insert_inscription_recursions<T: GenericClient>(
             )
             .await
             .map_err(|e| format!("insert_inscription_recursions: {e}"))?;
+    }
+    Ok(())
+}
+
+async fn insert_inscription_parents<T: GenericClient>(
+    inscription_parents: &Vec<DbInscriptionParent>,
+    client: &T,
+) -> Result<(), String> {
+    if inscription_parents.len() == 0 {
+        return Ok(());
+    }
+    for chunk in inscription_parents.chunks(500) {
+        let mut params: Vec<&(dyn ToSql + Sync)> = vec![];
+        for row in chunk.iter() {
+            params.push(&row.inscription_id);
+            params.push(&row.parent_inscription_id);
+        }
+        client
+            .query(
+                &format!(
+                    "INSERT INTO inscription_parents
+                    (inscription_id, parent_inscription_id)
+                    VALUES {}
+                    ON CONFLICT (inscription_id, parent_inscription_id) DO NOTHING",
+                    utils::multi_row_query_param_str(chunk.len(), 2)
+                ),
+                &params,
+            )
+            .await
+            .map_err(|e| format!("insert_inscription_parents: {e}"))?;
     }
     Ok(())
 }
@@ -695,6 +724,7 @@ pub async fn insert_block<T: GenericClient>(
     let mut inscriptions = vec![];
     let mut locations = vec![];
     let mut inscription_recursions = vec![];
+    let mut inscription_parents = vec![];
     let mut current_locations: HashMap<PgNumericU64, DbCurrentLocation> = HashMap::new();
     let mut mime_type_counts = HashMap::new();
     let mut sat_rarity_counts = HashMap::new();
@@ -737,6 +767,7 @@ pub async fn insert_block<T: GenericClient>(
                         inscription.recursive = true;
                     }
                     inscription_recursions.extend(recursions);
+                    inscription_parents.extend(DbInscriptionParent::from_reveal(reveal)?);
                     inscriptions.push(inscription);
                     locations.push(DbLocation::from_reveal(
                         reveal,
@@ -809,6 +840,7 @@ pub async fn insert_block<T: GenericClient>(
 
     insert_inscriptions(&inscriptions, client).await?;
     insert_inscription_recursions(&inscription_recursions, client).await?;
+    insert_inscription_parents(&inscription_parents, client).await?;
     insert_locations(&locations, client).await?;
     insert_satoshis(&satoshis, client).await?;
     insert_current_locations(&current_locations, client).await?;
@@ -1163,7 +1195,7 @@ mod test {
                                     delegate: None,
                                     metaprotocol: None,
                                     metadata: None,
-                                    parent: None,
+                                    parents: vec![],
                                     ordinal_number: 7000,
                                     ordinal_block_height: 0,
                                     ordinal_offset: 0,

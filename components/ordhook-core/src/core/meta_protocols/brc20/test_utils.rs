@@ -20,7 +20,7 @@ pub struct Brc20RevealBuilder {
     pub inscriber_address: Option<String>,
     pub inscription_id: String,
     pub ordinal_number: u64,
-    pub parent: Option<String>,
+    pub parents: Vec<String>,
 }
 
 impl Brc20RevealBuilder {
@@ -34,7 +34,7 @@ impl Brc20RevealBuilder {
             inscription_id: "9bb2314d666ae0b1db8161cb373fcc1381681f71445c4e0335aa80ea9c37fcddi0"
                 .to_string(),
             ordinal_number: 0,
-            parent: None,
+            parents: vec![],
         }
     }
 
@@ -61,8 +61,8 @@ impl Brc20RevealBuilder {
         self
     }
 
-    pub fn parent(mut self, val: Option<String>) -> Self {
-        self.parent = val;
+    pub fn parents(mut self, val: Vec<String>) -> Self {
+        self.parents = val;
         self
     }
 
@@ -81,7 +81,7 @@ impl Brc20RevealBuilder {
             delegate: None,
             metaprotocol: None,
             metadata: None,
-            parent: self.parent,
+            parents: self.parents,
             ordinal_number: self.ordinal_number,
             ordinal_block_height: 767430,
             ordinal_offset: 0,

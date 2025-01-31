@@ -53,7 +53,7 @@ mod test {
             delegate: None,
             metaprotocol: None,
             metadata: None,
-            parent: None,
+            parents: vec![],
             ordinal_number: 959876891264081,
             ordinal_block_height: 191975,
             ordinal_offset: 0,
