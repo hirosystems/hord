@@ -260,3 +260,216 @@ pub async fn index_block_and_insert_brc20_operations(
     brc20_cache.db_cache.flush(brc20_db_tx).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use chainhook_postgres::{pg_begin, pg_pool_client};
+    use chainhook_sdk::types::{
+        Brc20BalanceData, Brc20Operation, Brc20TokenDeployData, Brc20TransferData,
+        OrdinalInscriptionTransferDestination, OrdinalOperation,
+    };
+
+    use crate::{
+        core::{
+            meta_protocols::brc20::{
+                brc20_pg,
+                cache::Brc20MemoryCache,
+                index::index_block_and_insert_brc20_operations,
+                parser::{
+                    ParsedBrc20BalanceData, ParsedBrc20Operation, ParsedBrc20TokenDeployData,
+                },
+                test_utils::{get_test_ctx, Brc20RevealBuilder, Brc20TransferBuilder},
+            },
+            test_builders::{TestBlockBuilder, TestTransactionBuilder},
+        },
+        db::{pg_test_clear_db, pg_test_connection, pg_test_connection_pool},
+    };
+
+    #[tokio::test]
+    async fn test_full_block_indexing() -> Result<(), String> {
+        let ctx = get_test_ctx();
+        let mut pg_client = pg_test_connection().await;
+        let _ = brc20_pg::migrate(&mut pg_client).await;
+        let result = {
+            let mut brc20_client = pg_pool_client(&pg_test_connection_pool()).await?;
+            let client = pg_begin(&mut brc20_client).await?;
+
+            // Deploy a token, mint and transfer some balance.
+            let mut operation_map: HashMap<String, ParsedBrc20Operation> = HashMap::new();
+            operation_map.insert(
+                "01d6876703d25747bf5767f3d830548ebe09ffcade91d49e558eb9b6fd2d6d56i0".to_string(),
+                ParsedBrc20Operation::Deploy(ParsedBrc20TokenDeployData {
+                    tick: "pepe".to_string(),
+                    display_tick: "pepe".to_string(),
+                    max: "100".to_string(),
+                    lim: "1".to_string(),
+                    dec: "0".to_string(),
+                    self_mint: false,
+                }),
+            );
+            operation_map.insert(
+                "2e72578e1259b7dab363cb422ae1979ea329ffc0978c4a7552af907238db354ci0".to_string(),
+                ParsedBrc20Operation::Mint(ParsedBrc20BalanceData {
+                    tick: "pepe".to_string(),
+                    amt: "1".to_string(),
+                }),
+            );
+            operation_map.insert(
+                "a8494261df7d4980af988dfc0241bb7ec95051afdbb86e3bea9c3ab055e898f3i0".to_string(),
+                ParsedBrc20Operation::Transfer(ParsedBrc20BalanceData {
+                    tick: "pepe".to_string(),
+                    amt: "1".to_string(),
+                }),
+            );
+
+            let mut block = TestBlockBuilder::new()
+                .hash(
+                    "00000000000000000000a646fc25f31be344cab3e6e31ec26010c40173ad4bd3".to_string(),
+                )
+                .height(818000)
+                .add_transaction(
+                    TestTransactionBuilder::new()
+                        .add_ordinal_operation(OrdinalOperation::InscriptionRevealed(
+                            Brc20RevealBuilder::new()
+                                .inscription_number(0)
+                                .ordinal_number(100)
+                                .inscription_id("01d6876703d25747bf5767f3d830548ebe09ffcade91d49e558eb9b6fd2d6d56i0")
+                                .inscriber_address(Some("19PFYXeUuArA3vRDHh2zz8tupAYNFqjBCP".to_string()))
+                                .build(),
+                        ))
+                        .build(),
+                )
+                .add_transaction(
+                    TestTransactionBuilder::new()
+                        .add_ordinal_operation(OrdinalOperation::InscriptionRevealed(
+                            Brc20RevealBuilder::new()
+                                .inscription_number(1)
+                                .ordinal_number(200)
+                                .inscription_id("2e72578e1259b7dab363cb422ae1979ea329ffc0978c4a7552af907238db354ci0")
+                                .inscriber_address(Some("19PFYXeUuArA3vRDHh2zz8tupAYNFqjBCP".to_string()))
+                                .build(),
+                        ))
+                        .build(),
+                )
+                .add_transaction(
+                    TestTransactionBuilder::new()
+                        .add_ordinal_operation(OrdinalOperation::InscriptionRevealed(
+                            Brc20RevealBuilder::new()
+                                .inscription_number(2)
+                                .ordinal_number(300)
+                                .inscription_id("a8494261df7d4980af988dfc0241bb7ec95051afdbb86e3bea9c3ab055e898f3i0")
+                                .inscriber_address(Some("19PFYXeUuArA3vRDHh2zz8tupAYNFqjBCP".to_string()))
+                                .build(),
+                        ))
+                        .build(),
+                )
+                .add_transaction(
+                    TestTransactionBuilder::new()
+                        .add_ordinal_operation(OrdinalOperation::InscriptionTransferred(
+                            Brc20TransferBuilder::new()
+                                .tx_index(3)
+                                .ordinal_number(300)
+                                .destination(
+                                    OrdinalInscriptionTransferDestination::Transferred("3Ezed1AvfdnXFTMZqhMdhdq9hBMTqfx8Yz".to_string()
+                                ))
+                                .build()
+                        ))
+                        .build(),
+                )
+                .build();
+            let mut cache = Brc20MemoryCache::new(10);
+
+            let result = index_block_and_insert_brc20_operations(
+                &mut block,
+                &mut operation_map,
+                &mut cache,
+                &client,
+                &ctx,
+            )
+            .await;
+
+            assert_eq!(
+                block
+                    .transactions
+                    .get(0)
+                    .unwrap()
+                    .metadata
+                    .brc20_operation
+                    .as_ref()
+                    .unwrap(),
+                &Brc20Operation::Deploy(Brc20TokenDeployData {
+                    tick: "pepe".to_string(),
+                    max: "100".to_string(),
+                    lim: "1".to_string(),
+                    dec: "0".to_string(),
+                    self_mint: false,
+                    address: "19PFYXeUuArA3vRDHh2zz8tupAYNFqjBCP".to_string(),
+                    inscription_id:
+                        "01d6876703d25747bf5767f3d830548ebe09ffcade91d49e558eb9b6fd2d6d56i0"
+                            .to_string(),
+                })
+            );
+            assert_eq!(
+                block
+                    .transactions
+                    .get(1)
+                    .unwrap()
+                    .metadata
+                    .brc20_operation
+                    .as_ref()
+                    .unwrap(),
+                &Brc20Operation::Mint(Brc20BalanceData {
+                    tick: "pepe".to_string(),
+                    amt: "1".to_string(),
+                    address: "19PFYXeUuArA3vRDHh2zz8tupAYNFqjBCP".to_string(),
+                    inscription_id:
+                        "2e72578e1259b7dab363cb422ae1979ea329ffc0978c4a7552af907238db354ci0"
+                            .to_string()
+                })
+            );
+            assert_eq!(
+                block
+                    .transactions
+                    .get(2)
+                    .unwrap()
+                    .metadata
+                    .brc20_operation
+                    .as_ref()
+                    .unwrap(),
+                &Brc20Operation::Transfer(Brc20BalanceData {
+                    tick: "pepe".to_string(),
+                    amt: "1".to_string(),
+                    address: "19PFYXeUuArA3vRDHh2zz8tupAYNFqjBCP".to_string(),
+                    inscription_id:
+                        "a8494261df7d4980af988dfc0241bb7ec95051afdbb86e3bea9c3ab055e898f3i0"
+                            .to_string()
+                })
+            );
+            assert_eq!(
+                block
+                    .transactions
+                    .get(3)
+                    .unwrap()
+                    .metadata
+                    .brc20_operation
+                    .as_ref()
+                    .unwrap(),
+                &Brc20Operation::TransferSend(Brc20TransferData {
+                    tick: "pepe".to_string(),
+                    amt: "1".to_string(),
+                    sender_address: "19PFYXeUuArA3vRDHh2zz8tupAYNFqjBCP".to_string(),
+                    receiver_address: "3Ezed1AvfdnXFTMZqhMdhdq9hBMTqfx8Yz".to_string(),
+                    inscription_id:
+                        "a8494261df7d4980af988dfc0241bb7ec95051afdbb86e3bea9c3ab055e898f3i0"
+                            .to_string()
+                })
+            );
+
+            result
+        };
+        pg_test_clear_db(&mut pg_client).await;
+        result
+    }
+}
