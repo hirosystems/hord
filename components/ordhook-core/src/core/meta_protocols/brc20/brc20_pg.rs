@@ -87,7 +87,7 @@ pub async fn get_unsent_token_transfers<T: GenericClient>(
         return Ok(vec![]);
     }
     let mut results = vec![];
-    for chunk in ordinal_numbers.chunks(500) {
+    for chunk in ordinal_numbers.chunks(5000) {
         let wrapped: Vec<PgNumericU64> = chunk.iter().map(|n| PgNumericU64(*n)).collect();
         let mut params = vec![];
         for number in wrapped.iter() {
