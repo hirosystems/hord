@@ -19,7 +19,7 @@ use super::{
 };
 
 async fn index_unverified_brc20_transfers(
-    transfers: &Vec<(&OrdinalInscriptionTransferData, &TransactionIdentifier)>,
+    transfers: &Vec<(&TransactionIdentifier, &OrdinalInscriptionTransferData)>,
     block_identifier: &BlockIdentifier,
     timestamp: u32,
     brc20_cache: &mut Brc20MemoryCache,
@@ -29,14 +29,8 @@ async fn index_unverified_brc20_transfers(
     let mut results = vec![];
     let verified_brc20_transfers =
         verify_brc20_transfers(transfers, brc20_cache, &brc20_db_tx, &ctx).await?;
-    for (data, transfer, tx_identifier) in verified_brc20_transfers.into_iter() {
+    for (inscription_id, data, transfer, tx_identifier) in verified_brc20_transfers.into_iter() {
         let Some(token) = brc20_cache.get_token(&data.tick, brc20_db_tx).await? else {
-            unreachable!();
-        };
-        let Some(unsent_transfer) = brc20_cache
-            .get_unsent_token_transfer(transfer.ordinal_number, brc20_db_tx)
-            .await?
-        else {
             unreachable!();
         };
         results.push((
@@ -46,7 +40,7 @@ async fn index_unverified_brc20_transfers(
                 amt: u128_amount_to_decimals_str(data.amt, token.decimals.0),
                 sender_address: data.sender_address.clone(),
                 receiver_address: data.receiver_address.clone(),
-                inscription_id: unsent_transfer.inscription_id,
+                inscription_id,
             }),
         ));
         brc20_cache
@@ -84,9 +78,12 @@ pub async fn index_block_and_insert_brc20_operations(
     if block.block_identifier.index < brc20_activation_height(&block.metadata.network) {
         return Ok(());
     }
-    // Ordinal transfers that may be brc20 transfers. We group them into a vector to minimize round trips to the db.
+    // Ordinal transfers that may be brc20 transfers. We group them into a vector to minimize round trips to the db when analyzing
+    // them.
     let mut unverified_ordinal_transfers = vec![];
     let mut verified_brc20_transfers = vec![];
+
+    // Check every transaction in the block. Look for BRC-20 operations.
     for (tx_index, tx) in block.transactions.iter_mut().enumerate() {
         for op in tx.metadata.ordinal_operations.iter() {
             match op {
@@ -227,7 +224,7 @@ pub async fn index_block_and_insert_brc20_operations(
                     }
                 }
                 OrdinalOperation::InscriptionTransferred(transfer) => {
-                    unverified_ordinal_transfers.push((transfer, &tx.transaction_identifier));
+                    unverified_ordinal_transfers.push((&tx.transaction_identifier, transfer));
                 }
             }
         }
@@ -245,7 +242,12 @@ pub async fn index_block_and_insert_brc20_operations(
         .await?,
     );
     for (tx_index, verified_transfer) in verified_brc20_transfers.into_iter() {
-        block.transactions.get_mut(tx_index).unwrap().metadata.brc20_operation = Some(verified_transfer);
+        block
+            .transactions
+            .get_mut(tx_index)
+            .unwrap()
+            .metadata
+            .brc20_operation = Some(verified_transfer);
     }
     // Write all changes to DB.
     brc20_cache.db_cache.flush(brc20_db_tx).await?;

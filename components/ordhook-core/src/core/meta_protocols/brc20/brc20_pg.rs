@@ -79,24 +79,35 @@ pub async fn get_token_available_balance_for_address<T: GenericClient>(
     Ok(Some(supply.0))
 }
 
-pub async fn get_unsent_token_transfer<T: GenericClient>(
-    ordinal_number: u64,
+pub async fn get_unsent_token_transfers<T: GenericClient>(
+    ordinal_numbers: &Vec<u64>,
     client: &T,
-) -> Result<Option<DbOperation>, String> {
-    let row = client
-        .query_opt(
-            "SELECT * FROM operations
-            WHERE ordinal_number = $1 AND operation = 'transfer'
-            AND NOT EXISTS (SELECT 1 FROM operations WHERE ordinal_number = $1 AND operation = 'transfer_send')
+) -> Result<Vec<DbOperation>, String> {
+    let wrapped: Vec<PgNumericU64> = ordinal_numbers.iter().map(|n| PgNumericU64(*n)).collect();
+    let mut params = vec![];
+    for number in wrapped.iter() {
+        params.push(number);
+    }
+    let rows = client
+        .query(
+            "SELECT * 
+            FROM operations o
+            WHERE operation = 'transfer'
+                AND o.ordinal_number = ANY($1)
+                AND NOT EXISTS (
+                    SELECT 1 FROM operations 
+                    WHERE ordinal_number = o.ordinal_number 
+                    AND operation = 'transfer_send'
+                )
             LIMIT 1",
-            &[&PgNumericU64(ordinal_number)],
+            &[&params],
         )
         .await
-        .map_err(|e| format!("get_unsent_token_transfer: {e}"))?;
-    let Some(row) = row else {
-        return Ok(None);
-    };
-    Ok(Some(DbOperation::from_pg_row(&row)))
+        .map_err(|e| format!("get_unsent_token_transfers: {e}"))?;
+    Ok(rows
+        .iter()
+        .map(|row| DbOperation::from_pg_row(row))
+        .collect())
 }
 
 pub async fn insert_tokens<T: GenericClient>(
