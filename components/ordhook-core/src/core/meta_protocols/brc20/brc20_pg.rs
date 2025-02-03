@@ -83,31 +83,35 @@ pub async fn get_unsent_token_transfers<T: GenericClient>(
     ordinal_numbers: &Vec<u64>,
     client: &T,
 ) -> Result<Vec<DbOperation>, String> {
-    let wrapped: Vec<PgNumericU64> = ordinal_numbers.iter().map(|n| PgNumericU64(*n)).collect();
-    let mut params = vec![];
-    for number in wrapped.iter() {
-        params.push(number);
+    if ordinal_numbers.is_empty() {
+        return Ok(vec![]);
     }
-    let rows = client
-        .query(
-            "SELECT * 
-            FROM operations o
-            WHERE operation = 'transfer'
-                AND o.ordinal_number = ANY($1)
-                AND NOT EXISTS (
-                    SELECT 1 FROM operations 
-                    WHERE ordinal_number = o.ordinal_number 
-                    AND operation = 'transfer_send'
-                )
-            LIMIT 1",
-            &[&params],
-        )
-        .await
-        .map_err(|e| format!("get_unsent_token_transfers: {e}"))?;
-    Ok(rows
-        .iter()
-        .map(|row| DbOperation::from_pg_row(row))
-        .collect())
+    let mut results = vec![];
+    for chunk in ordinal_numbers.chunks(500) {
+        let wrapped: Vec<PgNumericU64> = chunk.iter().map(|n| PgNumericU64(*n)).collect();
+        let mut params = vec![];
+        for number in wrapped.iter() {
+            params.push(number);
+        }
+        let rows = client
+            .query(
+                "SELECT *
+                FROM operations o
+                WHERE operation = 'transfer'
+                    AND o.ordinal_number = ANY($1)
+                    AND NOT EXISTS (
+                        SELECT 1 FROM operations
+                        WHERE ordinal_number = o.ordinal_number
+                        AND operation = 'transfer_send'
+                    )
+                LIMIT 1",
+                &[&params],
+            )
+            .await
+            .map_err(|e| format!("get_unsent_token_transfers: {e}"))?;
+        results.extend(rows.iter().map(|row| DbOperation::from_pg_row(row)));
+    }
+    Ok(results)
 }
 
 pub async fn insert_tokens<T: GenericClient>(

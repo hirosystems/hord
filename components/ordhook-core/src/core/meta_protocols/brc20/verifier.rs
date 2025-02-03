@@ -222,7 +222,7 @@ pub async fn verify_brc20_transfers(
     transfers: &Vec<(&TransactionIdentifier, &OrdinalInscriptionTransferData)>,
     cache: &mut Brc20MemoryCache,
     db_tx: &Transaction<'_>,
-    _ctx: &Context,
+    ctx: &Context,
 ) -> Result<
     Vec<(
         String,
@@ -232,6 +232,8 @@ pub async fn verify_brc20_transfers(
     )>,
     String,
 > {
+    try_debug!(ctx, "BRC-20 verifying {} ordinal transfers", transfers.len());
+
     // Select ordinal numbers to analyze for pending BRC20 transfers.
     let mut ordinal_numbers = vec![];
     let mut candidate_transfers = HashMap::new();

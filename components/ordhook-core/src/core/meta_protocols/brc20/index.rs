@@ -18,6 +18,7 @@ use super::{
     verifier::{verify_brc20_operation, verify_brc20_transfers, VerifiedBrc20Operation},
 };
 
+/// Index ordinal transfers in a single Bitcoin block looking for BRC-20 transfers.
 async fn index_unverified_brc20_transfers(
     transfers: &Vec<(&TransactionIdentifier, &OrdinalInscriptionTransferData)>,
     block_identifier: &BlockIdentifier,
@@ -26,9 +27,15 @@ async fn index_unverified_brc20_transfers(
     brc20_db_tx: &Transaction<'_>,
     ctx: &Context,
 ) -> Result<Vec<(usize, Brc20Operation)>, String> {
+    if transfers.is_empty() {
+        return Ok(vec![]);
+    }
     let mut results = vec![];
-    let verified_brc20_transfers =
+    let mut verified_brc20_transfers =
         verify_brc20_transfers(transfers, brc20_cache, &brc20_db_tx, &ctx).await?;
+    // Sort verified transfers by tx_index to make sure they are applied in the order they came through.
+    verified_brc20_transfers.sort_by(|a, b| a.2.tx_index.cmp(&b.2.tx_index));
+
     for (inscription_id, data, transfer, tx_identifier) in verified_brc20_transfers.into_iter() {
         let Some(token) = brc20_cache.get_token(&data.tick, brc20_db_tx).await? else {
             unreachable!();
@@ -67,7 +74,7 @@ async fn index_unverified_brc20_transfers(
     Ok(results)
 }
 
-/// Indexes BRC-20 operations in a Bitcoin block. Also writes the indexed data to DB.
+/// Indexes BRC-20 operations in a single Bitcoin block. Also writes indexed data to DB.
 pub async fn index_block_and_insert_brc20_operations(
     block: &mut BitcoinBlockData,
     brc20_operation_map: &mut HashMap<String, ParsedBrc20Operation>,
@@ -78,8 +85,8 @@ pub async fn index_block_and_insert_brc20_operations(
     if block.block_identifier.index < brc20_activation_height(&block.metadata.network) {
         return Ok(());
     }
-    // Ordinal transfers that may be brc20 transfers. We group them into a vector to minimize round trips to the db when analyzing
-    // them.
+    // Ordinal transfers may be BRC-20 transfers. We group them into a vector to minimize round trips to the db when analyzing
+    // them. We will always insert them correctly in between new BRC-20 operations.
     let mut unverified_ordinal_transfers = vec![];
     let mut verified_brc20_transfers = vec![];
 
