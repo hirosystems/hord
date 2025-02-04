@@ -4,7 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use chainhook_postgres::deadpool_postgres::Transaction;
 use chainhook_sdk::{
     bitcoincore_rpc_json::bitcoin::Network,
     types::{
@@ -16,6 +15,7 @@ use chainhook_sdk::{
 };
 use crossbeam_channel::unbounded;
 use dashmap::DashMap;
+use deadpool_postgres::Transaction;
 use fxhash::FxHasher;
 
 use crate::{

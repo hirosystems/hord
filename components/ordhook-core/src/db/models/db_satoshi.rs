@@ -1,5 +1,6 @@
-use chainhook_postgres::{tokio_postgres::Row, types::PgNumericU64, FromPgRow};
+use chainhook_postgres::{types::PgNumericU64, FromPgRow};
 use chainhook_sdk::types::OrdinalInscriptionRevealData;
+use tokio_postgres::Row;
 
 use crate::ord::{rarity::Rarity, sat::Sat};
 

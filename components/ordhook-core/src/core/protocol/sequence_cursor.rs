@@ -1,5 +1,5 @@
-use chainhook_postgres::deadpool_postgres::GenericClient;
 use chainhook_sdk::{bitcoin::Network, types::OrdinalInscriptionNumber};
+use deadpool_postgres::GenericClient;
 
 use crate::db::ordinals_pg;
 

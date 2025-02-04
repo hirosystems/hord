@@ -1,5 +1,6 @@
 pub use chainhook_postgres::PgConnectionConfig;
-use chainhook_sdk::observer::EventObserverConfig;
+use chainhook_sdk::chainhooks::types::ChainhookStore;
+use chainhook_sdk::observer::{EventObserverConfig, PredicatesConfig};
 use chainhook_sdk::types::{
     BitcoinBlockSignaling, BitcoinNetwork, StacksNetwork, StacksNodeConfig,
 };
@@ -102,18 +103,16 @@ impl Config {
     pub fn get_event_observer_config(&self) -> EventObserverConfig {
         EventObserverConfig {
             bitcoin_rpc_proxy_enabled: true,
-            chainhook_config: None,
-            ingestion_port: DEFAULT_INGESTION_PORT,
             bitcoind_rpc_username: self.network.bitcoind_rpc_username.clone(),
             bitcoind_rpc_password: self.network.bitcoind_rpc_password.clone(),
             bitcoind_rpc_url: self.network.bitcoind_rpc_url.clone(),
             bitcoin_block_signaling: self.network.bitcoin_block_signaling.clone(),
-            display_logs: false,
-            cache_path: self.storage.working_dir.clone(),
             bitcoin_network: self.network.bitcoin_network.clone(),
             stacks_network: StacksNetwork::Devnet,
             prometheus_monitoring_port: None,
-            data_handler_tx: None,
+            registered_chainhooks: ChainhookStore { stacks_chainhooks: vec![], bitcoin_chainhooks: vec![] },
+            predicates_config: PredicatesConfig { payload_http_request_timeout_ms: None },
+            display_stacks_ingestion_logs: false,
         }
     }
 

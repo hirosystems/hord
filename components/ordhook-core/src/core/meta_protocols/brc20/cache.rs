@@ -1,13 +1,11 @@
 use std::{collections::HashMap, num::NonZeroUsize};
 
-use chainhook_postgres::{
-    deadpool_postgres::GenericClient,
-    types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8},
-};
+use chainhook_postgres::types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8};
 use chainhook_sdk::types::{
     BlockIdentifier, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
     TransactionIdentifier,
 };
+use deadpool_postgres::GenericClient;
 use lru::LruCache;
 use maplit::hashmap;
 

@@ -1,5 +1,4 @@
 use chainhook_postgres::{
-    tokio_postgres::Row,
     types::{PgBigIntU32, PgNumericU64},
     FromPgRow,
 };
@@ -7,6 +6,7 @@ use chainhook_sdk::types::{
     BlockIdentifier, OrdinalInscriptionCurseType, OrdinalInscriptionRevealData,
     TransactionIdentifier,
 };
+use tokio_postgres::Row;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DbInscription {

@@ -1,8 +1,8 @@
 use chainhook_postgres::{
-    tokio_postgres::Row,
     types::{PgBigIntU32, PgNumericU128, PgNumericU64},
     FromPgRow,
 };
+use tokio_postgres::Row;
 
 #[derive(Debug, Clone)]
 pub struct DbOperation {

@@ -1,8 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
 use chainhook_postgres::{
-    deadpool_postgres::GenericClient,
-    tokio_postgres::{types::ToSql, Client},
     types::{PgBigIntU32, PgNumericU64},
     utils,
 };
@@ -10,7 +8,9 @@ use chainhook_sdk::types::{
     bitcoin::TxIn, BitcoinBlockData, OrdinalInscriptionNumber, OrdinalOperation,
     TransactionIdentifier,
 };
+use deadpool_postgres::GenericClient;
 use refinery::embed_migrations;
+use tokio_postgres::{types::ToSql, Client};
 
 use crate::{
     core::protocol::{satoshi_numbering::TraversalResult, satoshi_tracking::WatchedSatpoint},
@@ -18,7 +18,8 @@ use crate::{
 };
 
 use super::models::{
-    DbCurrentLocation, DbInscription, DbInscriptionParent, DbInscriptionRecursion, DbLocation, DbSatoshi
+    DbCurrentLocation, DbInscription, DbInscriptionParent, DbInscriptionRecursion, DbLocation,
+    DbSatoshi,
 };
 
 embed_migrations!("../../migrations/ordinals");
@@ -1004,7 +1005,6 @@ pub async fn rollback_block<T: GenericClient>(block_height: u64, client: &T) -> 
 #[cfg(test)]
 mod test {
     use chainhook_postgres::{
-        deadpool_postgres::GenericClient,
         pg_begin, pg_pool_client,
         types::{PgBigIntU32, PgNumericU64},
         FromPgRow,
@@ -1013,6 +1013,7 @@ mod test {
         OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
         OrdinalInscriptionTransferDestination, OrdinalOperation,
     };
+    use deadpool_postgres::GenericClient;
 
     use crate::{
         core::test_builders::{TestBlockBuilder, TestTransactionBuilder},

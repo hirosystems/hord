@@ -1,13 +1,14 @@
 use std::collections::HashSet;
 
-use chainhook_postgres::deadpool_postgres::Transaction;
 use chainhook_sdk::{
     bitcoincore_rpc_json::bitcoin::{Address, Network, ScriptBuf},
     types::{
-        BitcoinBlockData, BitcoinTransactionData, BlockIdentifier, OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination, OrdinalOperation
+        BitcoinBlockData, BitcoinTransactionData, BlockIdentifier, OrdinalInscriptionTransferData,
+        OrdinalInscriptionTransferDestination, OrdinalOperation,
     },
     utils::Context,
 };
+use deadpool_postgres::Transaction;
 
 use crate::{
     core::{compute_next_satpoint_data, SatPosition},

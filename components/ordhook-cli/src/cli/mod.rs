@@ -2,12 +2,13 @@ use crate::config::file::ConfigFile;
 use crate::config::generator::generate_config;
 use clap::{Parser, Subcommand};
 use hiro_system_kit;
-use ordhook::chainhook_sdk::chainhooks::types::{
-    BitcoinChainhookSpecification, HttpHook, InscriptionFeedData, OrdinalsMetaProtocol,
-};
-use ordhook::chainhook_sdk::chainhooks::types::{
-    BitcoinPredicateType, HookAction, OrdinalOperations,
-};
+use ordhook::chainhook_sdk::chainhooks::bitcoin::BitcoinChainhookSpecification;
+use ordhook::chainhook_sdk::chainhooks::bitcoin::BitcoinPredicateType;
+use ordhook::chainhook_sdk::chainhooks::bitcoin::InscriptionFeedData;
+use ordhook::chainhook_sdk::chainhooks::bitcoin::OrdinalOperations;
+use ordhook::chainhook_sdk::chainhooks::bitcoin::OrdinalsMetaProtocol;
+use ordhook::chainhook_sdk::chainhooks::types::HookAction;
+use ordhook::chainhook_sdk::chainhooks::types::HttpHook;
 use ordhook::chainhook_sdk::utils::BlockHeights;
 use ordhook::chainhook_sdk::utils::Context;
 use ordhook::config::Config;
@@ -411,7 +412,7 @@ pub fn build_predicate_from_cli(
     block_heights: Option<&BlockHeights>,
     start_block: Option<u64>,
     auth_token: Option<String>,
-    is_streaming: bool,
+    _is_streaming: bool,
 ) -> Result<BitcoinChainhookSpecification, String> {
     // Retrieve last block height known, and display it
     let (start_block, end_block, blocks) = match (start_block, block_heights) {
@@ -427,21 +428,14 @@ pub fn build_predicate_from_cli(
         meta_protocols = Some(meta.clone());
     }
     let predicate = BitcoinChainhookSpecification {
-        network: config.network.bitcoin_network.clone(),
-        uuid: post_to.to_string(),
-        owner_uuid: None,
-        name: post_to.to_string(),
-        version: 1,
         start_block,
         end_block,
         blocks,
         expire_after_occurrence: None,
-        include_proof: false,
-        include_inputs: false,
-        include_outputs: false,
-        include_witness: false,
-        expired_at: None,
-        enabled: is_streaming,
+        include_proof: Some(false),
+        include_inputs: Some(false),
+        include_outputs: Some(false),
+        include_witness: Some(false),
         predicate: BitcoinPredicateType::OrdinalsProtocol(OrdinalOperations::InscriptionFeed(
             InscriptionFeedData { meta_protocols },
         )),

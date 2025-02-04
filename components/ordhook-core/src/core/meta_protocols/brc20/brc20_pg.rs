@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
 use chainhook_postgres::{
-    deadpool_postgres::GenericClient,
-    tokio_postgres::{types::ToSql, Client},
     types::{PgNumericU128, PgNumericU64},
     utils, FromPgRow,
 };
@@ -10,6 +8,8 @@ use chainhook_sdk::types::{
     BitcoinBlockData, Brc20BalanceData, Brc20Operation, Brc20TokenDeployData, Brc20TransferData,
 };
 use refinery::embed_migrations;
+use deadpool_postgres::GenericClient;
+use tokio_postgres::{types::ToSql, Client};
 
 use super::{
     models::{DbOperation, DbToken},
@@ -543,8 +543,8 @@ pub async fn rollback_block_operations<T: GenericClient>(
 
 #[cfg(test)]
 mod test {
+    use deadpool_postgres::GenericClient;
     use chainhook_postgres::{
-        deadpool_postgres::GenericClient,
         pg_begin, pg_pool_client,
         types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8},
     };

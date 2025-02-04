@@ -1,10 +1,7 @@
 pub mod types;
 pub mod utils;
 
-pub use deadpool_postgres;
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod, Transaction};
-pub use tokio_postgres;
-
 use tokio_postgres::{Client, Config, NoTls, Row};
 
 /// A Postgres configuration for a single database.

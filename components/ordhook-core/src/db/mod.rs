@@ -37,17 +37,17 @@ pub fn pg_test_config() -> chainhook_postgres::PgConnectionConfig {
 }
 
 #[cfg(test)]
-pub fn pg_test_connection_pool() -> chainhook_postgres::deadpool_postgres::Pool {
+pub fn pg_test_connection_pool() -> deadpool_postgres::Pool {
     chainhook_postgres::pg_pool(&pg_test_config()).unwrap()
 }
 
 #[cfg(test)]
-pub async fn pg_test_connection() -> chainhook_postgres::tokio_postgres::Client {
+pub async fn pg_test_connection() -> tokio_postgres::Client {
     chainhook_postgres::pg_connect(&pg_test_config()).await.unwrap()
 }
 
 #[cfg(test)]
-pub async fn pg_test_clear_db(pg_client: &mut chainhook_postgres::tokio_postgres::Client) {
+pub async fn pg_test_clear_db(pg_client: &mut tokio_postgres::Client) {
     match pg_client
         .batch_execute(
             "

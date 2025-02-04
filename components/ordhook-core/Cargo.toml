@@ -42,7 +42,9 @@ ciborium = "0.2.1"
 regex = "1.10.3"
 prometheus = "0.13.3"
 chainhook-postgres = { path = "../chainhook-postgres" }
-refinery = { version = "0.8", features = ["tokio-postgres"] }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+refinery = { workspace = true }
 maplit = "1.0.2"
 
 [dev-dependencies]
