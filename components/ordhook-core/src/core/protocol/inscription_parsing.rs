@@ -33,9 +33,6 @@ pub fn parse_inscriptions_from_witness(
         .map(|e| ParsedEnvelope::from(e))
         .collect();
     let mut inscriptions = vec![];
-    // if txid == "8df248387ed10821a403f7de4c08fea24fa626718c57ec99930e35f9676ac3e8" {
-    //     println!("TEST");
-    // }
     for envelope in envelopes.into_iter() {
         let curse_type = if envelope.payload.unrecognized_even_field {
             Some(OrdinalInscriptionCurseType::UnrecognizedEvenField)
