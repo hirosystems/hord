@@ -13,7 +13,7 @@ pub(crate) const BODY_TAG: [u8; 0] = [];
 
 type Result<T> = std::result::Result<T, script::Error>;
 type RawEnvelope = Envelope<Vec<Vec<u8>>>;
-pub(crate) type ParsedEnvelope = Envelope<Inscription>;
+pub type ParsedEnvelope = Envelope<Inscription>;
 
 #[derive(Default, PartialEq, Clone, Serialize, Deserialize, Debug, Eq)]
 pub struct Envelope<T> {
@@ -111,7 +111,7 @@ impl RawEnvelope {
         envelopes
     }
 
-    pub(crate) fn from_tapscript(tapscript: &Script, input: usize) -> Result<Vec<Self>> {
+    pub fn from_tapscript(tapscript: &Script, input: usize) -> Result<Vec<Self>> {
         let mut envelopes = Vec::new();
 
         let mut instructions = tapscript.instructions().peekable();

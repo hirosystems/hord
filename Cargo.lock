@@ -446,7 +446,6 @@ name = "chainhook-postgres"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "chainhook-sdk",
  "deadpool-postgres",
  "num-traits",
  "slog",
@@ -752,9 +751,9 @@ checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 
 [[package]]
 name = "crunchy"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
+checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
 
 [[package]]
 name = "crypto-common"
@@ -2340,6 +2339,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
+name = "ord"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chainhook-sdk",
+ "ciborium",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "ordhook"
 version = "1.0.0"
 dependencies = [
@@ -2348,7 +2359,6 @@ dependencies = [
  "atty",
  "chainhook-postgres",
  "chainhook-sdk",
- "ciborium",
  "crossbeam-channel",
  "dashmap",
  "deadpool-postgres",
@@ -2364,6 +2374,7 @@ dependencies = [
  "lru",
  "maplit",
  "num_cpus",
+ "ord",
  "pprof",
  "progressing",
  "prometheus",

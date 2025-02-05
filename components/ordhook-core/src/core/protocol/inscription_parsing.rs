@@ -14,9 +14,9 @@ use std::str::FromStr;
 use crate::config::Config;
 use crate::core::meta_protocols::brc20::brc20_activation_height;
 use crate::core::meta_protocols::brc20::parser::{parse_brc20_operation, ParsedBrc20Operation};
-use crate::ord::envelope::{Envelope, ParsedEnvelope};
-use crate::ord::inscription::Inscription;
-use crate::ord::inscription_id::InscriptionId;
+use ord::envelope::{Envelope, ParsedEnvelope};
+use ord::inscription::Inscription;
+use ord::inscription_id::InscriptionId;
 use crate::try_warn;
 use {chainhook_sdk::bitcoincore_rpc::bitcoin::Witness, std::str};
 

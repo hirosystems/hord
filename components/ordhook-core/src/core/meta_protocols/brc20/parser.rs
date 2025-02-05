@@ -1,5 +1,5 @@
-use crate::ord::inscription::Inscription;
-use crate::ord::media::{Language, Media};
+use ord::inscription::Inscription;
+use ord::media::{Language, Media};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ParsedBrc20TokenDeployData {
@@ -59,7 +59,8 @@ pub fn amt_has_valid_decimals(amt: &str, max_decimals: u8) -> bool {
 }
 
 fn parse_float_numeric_value(n: &str, max_decimals: u8) -> Option<f64> {
-    if n.chars().all(|c| c.is_ascii_digit() || c == '.') && !n.starts_with('.') && !n.ends_with('.') {
+    if n.chars().all(|c| c.is_ascii_digit() || c == '.') && !n.starts_with('.') && !n.ends_with('.')
+    {
         if !amt_has_valid_decimals(n, max_decimals) {
             return None;
         }
@@ -147,14 +148,16 @@ pub fn parse_brc20_operation(
             } else {
                 limit = max.clone();
             }
-            return Ok(Some(ParsedBrc20Operation::Deploy(ParsedBrc20TokenDeployData {
-                tick: json.tick.to_lowercase(),
-                display_tick: json.tick.clone(),
-                max,
-                lim: limit,
-                dec: decimals.to_string(),
-                self_mint,
-            })));
+            return Ok(Some(ParsedBrc20Operation::Deploy(
+                ParsedBrc20TokenDeployData {
+                    tick: json.tick.to_lowercase(),
+                    display_tick: json.tick.clone(),
+                    max,
+                    lim: limit,
+                    dec: decimals.to_string(),
+                    self_mint,
+                },
+            )));
         }
         Err(_) => match serde_json::from_slice::<Brc20MintOrTransferJson>(inscription_body) {
             Ok(json) => {
@@ -201,10 +204,10 @@ pub fn parse_brc20_operation(
 #[cfg(test)]
 mod test {
     use super::{parse_brc20_operation, ParsedBrc20Operation};
-    use crate::{
-        core::meta_protocols::brc20::parser::{ParsedBrc20BalanceData, ParsedBrc20TokenDeployData},
-        ord::inscription::Inscription,
+    use crate::core::meta_protocols::brc20::parser::{
+        ParsedBrc20BalanceData, ParsedBrc20TokenDeployData,
     };
+    use ord::inscription::Inscription;
     use test_case::test_case;
 
     struct InscriptionBuilder {

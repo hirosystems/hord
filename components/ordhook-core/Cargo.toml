@@ -38,7 +38,6 @@ rocksdb = { version = "0.21.0", default-features = false, features = [
 pprof = { version = "0.14.0", features = ["flamegraph"], optional = true }
 hyper = { version = "=0.14.27" }
 lazy_static = { version = "1.4.0" }
-ciborium = "0.2.1"
 regex = "1.10.3"
 prometheus = "0.13.3"
 chainhook-postgres = { path = "../chainhook-postgres" }
@@ -46,6 +45,7 @@ tokio-postgres = { workspace = true }
 deadpool-postgres = { workspace = true }
 refinery = { workspace = true }
 maplit = "1.0.2"
+ord = { path = "../ord" }
 
 [dev-dependencies]
 test-case = "3.1.0"

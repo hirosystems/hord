@@ -5,6 +5,7 @@ members = [
     "components/chainhook-types-rs",
     "components/ordhook-cli",
     "components/ordhook-core",
+    "components/ord",
 ]
 default-members = ["components/ordhook-cli"]
 resolver = "2"

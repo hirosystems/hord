@@ -285,23 +285,23 @@ impl Inscription {
     //   witness
     // }
 
-    pub fn hidden(&self) -> bool {
-        use regex::bytes::Regex;
+    // pub fn hidden(&self) -> bool {
+    //     use regex::bytes::Regex;
 
-        const BVM_NETWORK: &[u8] = b"<body style=\"background:#F61;color:#fff;\">\
-                          <h1 style=\"height:100%\">bvm.network</h1></body>";
+    //     const BVM_NETWORK: &[u8] = b"<body style=\"background:#F61;color:#fff;\">\
+    //                       <h1 style=\"height:100%\">bvm.network</h1></body>";
 
-        lazy_static! {
-            static ref BRC_420: Regex =
-                Regex::new(r"^\s*/content/[[:xdigit:]]{64}i\d+\s*$").unwrap();
-        }
+    //     lazy_static! {
+    //         static ref BRC_420: Regex =
+    //             Regex::new(r"^\s*/content/[[:xdigit:]]{64}i\d+\s*$").unwrap();
+    //     }
 
-        self.body()
-            .map(|body| BRC_420.is_match(body) || body.starts_with(BVM_NETWORK))
-            .unwrap_or_default()
-            || self.metaprotocol.is_some()
-            || matches!(self.media(), Media::Code(_) | Media::Text | Media::Unknown)
-    }
+    //     self.body()
+    //         .map(|body| BRC_420.is_match(body) || body.starts_with(BVM_NETWORK))
+    //         .unwrap_or_default()
+    //         || self.metaprotocol.is_some()
+    //         || matches!(self.media(), Media::Code(_) | Media::Text | Media::Unknown)
+    // }
 }
 
 // #[cfg(test)]

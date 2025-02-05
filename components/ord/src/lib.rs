@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+#[macro_use]
+extern crate serde_derive;
+
 type Result<T = (), E = anyhow::Error> = std::result::Result<T, E>;
 
 pub mod chain;

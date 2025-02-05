@@ -13,10 +13,10 @@ use deadpool_postgres::Transaction;
 use crate::{
     core::{compute_next_satpoint_data, SatPosition},
     db::ordinals_pg,
-    ord::height::Height,
     try_info,
     utils::format_outpoint_to_watch,
 };
+use ord::height::Height;
 
 use super::inscription_sequencing::get_bitcoin_network;
 

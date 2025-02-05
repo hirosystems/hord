@@ -16,6 +16,5 @@ pub mod config;
 pub mod core;
 pub mod db;
 pub mod download;
-pub mod ord;
 pub mod service;
 pub mod utils;

@@ -22,10 +22,10 @@ use crate::{
     config::Config,
     core::resolve_absolute_pointer,
     db::{self, cursor::TransactionBytesCursor, ordinals_pg},
-    ord::height::Height,
     try_debug, try_error, try_info,
     utils::format_inscription_id,
 };
+use ord::height::Height;
 
 use std::sync::mpsc::channel;
 
