@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use chainhook_sdk::types::{
     BitcoinNetwork, BlockIdentifier, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
-    OrdinalInscriptionTransferDestination,
+    OrdinalInscriptionTransferDestination, TransactionIdentifier,
 };
 use chainhook_sdk::utils::Context;
 use deadpool_postgres::Transaction;
@@ -214,49 +216,73 @@ pub async fn verify_brc20_operation(
     };
 }
 
-pub async fn verify_brc20_transfer(
-    transfer: &OrdinalInscriptionTransferData,
+/// Given a list of ordinal transfers, verify which of them are valid `transfer_send` BRC-20 operations we haven't yet processed.
+/// Return verified transfer data for each valid operation.
+pub async fn verify_brc20_transfers(
+    transfers: &Vec<(&TransactionIdentifier, &OrdinalInscriptionTransferData)>,
     cache: &mut Brc20MemoryCache,
     db_tx: &Transaction<'_>,
     ctx: &Context,
-) -> Result<Option<VerifiedBrc20TransferData>, String> {
-    let Some(transfer_row) = cache
-        .get_unsent_token_transfer(transfer.ordinal_number, db_tx)
-        .await?
-    else {
-        try_debug!(
-            ctx,
-            "BRC-20: No BRC-20 transfer in ordinal {} or transfer already sent",
-            transfer.ordinal_number
-        );
-        return Ok(None);
-    };
-    match &transfer.destination {
-        OrdinalInscriptionTransferDestination::Transferred(receiver_address) => {
-            return Ok(Some(VerifiedBrc20TransferData {
-                tick: transfer_row.ticker.clone(),
-                amt: transfer_row.amount.0,
-                sender_address: transfer_row.address.clone(),
-                receiver_address: receiver_address.to_string(),
-            }));
+) -> Result<
+    Vec<(
+        String,
+        VerifiedBrc20TransferData,
+        OrdinalInscriptionTransferData,
+        TransactionIdentifier,
+    )>,
+    String,
+> {
+    try_debug!(ctx, "BRC-20 verifying {} ordinal transfers", transfers.len());
+
+    // Select ordinal numbers to analyze for pending BRC20 transfers.
+    let mut ordinal_numbers = vec![];
+    let mut candidate_transfers = HashMap::new();
+    for (tx_identifier, data) in transfers.iter() {
+        if !candidate_transfers.contains_key(&data.ordinal_number) {
+            ordinal_numbers.push(&data.ordinal_number);
+            candidate_transfers.insert(&data.ordinal_number, (*tx_identifier, *data));
         }
-        OrdinalInscriptionTransferDestination::SpentInFees => {
-            return Ok(Some(VerifiedBrc20TransferData {
-                tick: transfer_row.ticker.clone(),
-                amt: transfer_row.amount.0,
-                sender_address: transfer_row.address.clone(),
-                receiver_address: transfer_row.address.clone(), // Return to sender
-            }));
-        }
-        OrdinalInscriptionTransferDestination::Burnt(_) => {
-            return Ok(Some(VerifiedBrc20TransferData {
+    }
+    // Check cache for said transfers.
+    let db_operations = cache
+        .get_unsent_token_transfers(&ordinal_numbers, db_tx)
+        .await?;
+    if db_operations.is_empty() {
+        return Ok(vec![]);
+    }
+    // Return any resulting `transfer_send` operations.
+    let mut results = vec![];
+    for transfer_row in db_operations.into_iter() {
+        let (tx_identifier, data) = candidate_transfers
+            .get(&transfer_row.ordinal_number.0)
+            .unwrap();
+        let verified = match &data.destination {
+            OrdinalInscriptionTransferDestination::Transferred(receiver_address) => {
+                VerifiedBrc20TransferData {
+                    tick: transfer_row.ticker.clone(),
+                    amt: transfer_row.amount.0,
+                    sender_address: transfer_row.address.clone(),
+                    receiver_address: receiver_address.to_string(),
+                }
+            }
+            OrdinalInscriptionTransferDestination::SpentInFees => {
+                VerifiedBrc20TransferData {
+                    tick: transfer_row.ticker.clone(),
+                    amt: transfer_row.amount.0,
+                    sender_address: transfer_row.address.clone(),
+                    receiver_address: transfer_row.address.clone(), // Return to sender
+                }
+            }
+            OrdinalInscriptionTransferDestination::Burnt(_) => VerifiedBrc20TransferData {
                 tick: transfer_row.ticker.clone(),
                 amt: transfer_row.amount.0,
                 sender_address: transfer_row.address.clone(),
                 receiver_address: "".to_string(),
-            }));
-        }
-    };
+            },
+        };
+        results.push((transfer_row.inscription_id, verified, (*data).clone(), (*tx_identifier).clone()));
+    }
+    return Ok(results);
 }
 
 #[cfg(test)]
@@ -282,7 +308,7 @@ mod test {
         db::{pg_test_clear_db, pg_test_connection, pg_test_connection_pool},
     };
 
-    use super::{verify_brc20_operation, verify_brc20_transfer, VerifiedBrc20TransferData};
+    use super::{verify_brc20_operation, verify_brc20_transfers, VerifiedBrc20TransferData};
 
     #[test_case(
         ParsedBrc20Operation::Deploy(ParsedBrc20TokenDeployData {
@@ -1067,10 +1093,13 @@ mod test {
                 2,
                 &client
             ).await?;
-                verify_brc20_transfer(&transfer, &mut cache, &client, &ctx).await
+                verify_brc20_transfers(&vec![(&tx, &transfer)], &mut cache, &client, &ctx).await?
             };
         pg_test_clear_db(&mut pg_client).await;
-        result
+        let Some(result) = result.first() else {
+            return Ok(None);
+        };
+        Ok(Some(result.1.clone()))
     }
 
     #[test_case(
@@ -1176,9 +1205,12 @@ mod test {
                         &client,
                     )
                     .await?;
-                verify_brc20_transfer(&transfer, &mut cache, &client, &ctx).await
+                verify_brc20_transfers(&vec![(&tx, &transfer)], &mut cache, &client, &ctx).await?
             };
         pg_test_clear_db(&mut pg_client).await;
-        result
+        let Some(result) = result.first() else {
+            return Ok(None);
+        };
+        Ok(Some(result.1.clone()))
     }
 }
