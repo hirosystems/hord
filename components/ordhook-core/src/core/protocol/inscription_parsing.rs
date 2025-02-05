@@ -3,8 +3,8 @@ use chainhook_sdk::indexer::bitcoin::BitcoinTransactionFullBreakdown;
 use chainhook_sdk::indexer::bitcoin::{standardize_bitcoin_block, BitcoinBlockFullBreakdown};
 use chainhook_sdk::types::{
     BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
-    OrdinalInscriptionCurseType, OrdinalInscriptionNumber, OrdinalInscriptionRevealData,
-    OrdinalInscriptionTransferData, OrdinalOperation,
+    OrdinalInscriptionCharms, OrdinalInscriptionCurseType, OrdinalInscriptionNumber,
+    OrdinalInscriptionRevealData, OrdinalInscriptionTransferData, OrdinalOperation,
 };
 use chainhook_sdk::utils::Context;
 use serde_json::json;
@@ -64,7 +64,12 @@ pub fn parse_inscriptions_from_witness(
         let mut content_bytes = "0x".to_string();
         content_bytes.push_str(&hex::encode(&inscription_content_bytes));
 
-        let parents = envelope.payload.parents().iter().map(|i| i.to_string()).collect();
+        let parents = envelope
+            .payload
+            .parents()
+            .iter()
+            .map(|i| i.to_string())
+            .collect();
         let delegate = envelope
             .payload
             .delegate()
@@ -75,12 +80,9 @@ pub fn parse_inscriptions_from_witness(
             .and_then(|p| Some(p.to_string()));
         let metadata = envelope.payload.metadata().and_then(|m| Some(json!(m)));
 
+        // Most of these fields will be calculated later when we know for certain which satoshi contains this inscription.
         let reveal_data = OrdinalInscriptionRevealData {
-            content_type: envelope
-                .payload
-                .content_type()
-                .unwrap_or("")
-                .to_string(),
+            content_type: envelope.payload.content_type().unwrap_or("").to_string(),
             content_bytes,
             content_length: inscription_content_bytes.len(),
             inscription_id: inscription_id.to_string(),
@@ -101,6 +103,7 @@ pub fn parse_inscriptions_from_witness(
             transfers_pre_inscription: 0,
             satpoint_post_inscription: format!(""),
             curse_type,
+            charms: OrdinalInscriptionCharms::none(),
         };
         inscriptions.push((reveal_data, envelope.payload));
     }

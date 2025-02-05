@@ -1,7 +1,6 @@
 use chainhook_sdk::{
     types::{
-        OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
-        OrdinalInscriptionTransferDestination,
+        OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination
     },
     utils::Context,
 };
@@ -90,6 +89,7 @@ impl Brc20RevealBuilder {
             satpoint_post_inscription:
                 "9bb2314d666ae0b1db8161cb373fcc1381681f71445c4e0335aa80ea9c37fcdd:0:0".to_string(),
             curse_type: None,
+            charms: OrdinalInscriptionCharms::none(),
         }
     }
 }
