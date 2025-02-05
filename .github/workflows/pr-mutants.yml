@@ -108,7 +108,7 @@ jobs:
           # Disable immediate exit on error
           set +e
 
-          cargo mutants --workspace --timeout-multiplier 1.5 --no-shuffle -vV --in-diff git.diff --output ./ --test-tool=nextest -- --all-targets --test-threads 1
+          cargo mutants --workspace --in-place --timeout-multiplier 1.5 --no-shuffle -vV --in-diff git.diff --output ./ --test-tool=nextest -- --all-targets --test-threads 1
           exit_code=$?
 
           # Create the folder only containing the outcomes (.txt files) and make a file containing the exit code of the command
