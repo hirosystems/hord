@@ -25,7 +25,7 @@ The source code for this project is available in our [GitHub repository](https:/
       version: SERVER_VERSION.tag,
     },
     externalDocs: {
-      url: 'https://github.com/hirosystems/ordinals-api',
+      url: 'https://github.com/hirosystems/ordhook',
       description: 'Source Repository',
     },
     servers: [
