@@ -1,10 +1,8 @@
 use super::bitcoin::{TxIn, TxOut};
-use crate::contract_interface::ContractInterface;
 use crate::ordinals::OrdinalOperation;
-use crate::{events::*, Brc20Operation, StacksStackerDbChunk, DEFAULT_STACKS_NODE_RPC};
+use crate::Brc20Operation;
 use schemars::JsonSchema;
 use std::cmp::Ordering;
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
@@ -64,85 +62,6 @@ impl PartialEq for BlockIdentifier {
 
 impl Eq for BlockIdentifier {}
 
-/// StacksBlock contain an array of Transactions that occurred at a particular
-/// BlockIdentifier. A hard requirement for blocks returned by Rosetta
-/// implementations is that they MUST be _inalterable_: once a client has
-/// requested and received a block identified by a specific BlockIndentifier,
-/// all future calls for that same BlockIdentifier must return the same block
-/// contents.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksBlockData {
-    pub block_identifier: BlockIdentifier,
-    pub parent_block_identifier: BlockIdentifier,
-    /// The timestamp of the block in milliseconds since the Unix Epoch. The
-    /// timestamp is stored in milliseconds because some blockchains produce
-    /// blocks more often than once a second.
-    pub timestamp: i64,
-    pub transactions: Vec<StacksTransactionData>,
-    pub metadata: StacksBlockMetadata,
-}
-
-/// StacksMicroblock contain an array of Transactions that occurred at a particular
-/// BlockIdentifier.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksMicroblockData {
-    pub block_identifier: BlockIdentifier,
-    pub parent_block_identifier: BlockIdentifier,
-    /// The timestamp of the block in milliseconds since the Unix Epoch. The
-    /// timestamp is stored in milliseconds because some blockchains produce
-    /// blocks more often than once a second.
-    pub timestamp: i64,
-    pub transactions: Vec<StacksTransactionData>,
-    pub metadata: StacksMicroblockMetadata,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksMicroblockMetadata {
-    pub anchor_block_identifier: BlockIdentifier,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksMicroblocksTrail {
-    pub microblocks: Vec<StacksMicroblockData>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksBlockMetadata {
-    pub bitcoin_anchor_block_identifier: BlockIdentifier,
-    pub pox_cycle_index: u32,
-    pub pox_cycle_position: u32,
-    pub pox_cycle_length: u32,
-    pub confirm_microblock_identifier: Option<BlockIdentifier>,
-    pub stacks_block_hash: String,
-
-    // Fields included in Nakamoto block headers
-    pub block_time: Option<u64>,
-    pub signer_bitvec: Option<String>,
-    pub signer_signature: Option<Vec<String>>,
-    pub signer_public_keys: Option<Vec<String>>,
-
-    // Available starting in epoch3, only included in blocks where the pox cycle rewards are first calculated
-    pub cycle_number: Option<u64>,
-    pub reward_set: Option<StacksBlockMetadataRewardSet>,
-
-    // Available in /new_block messages sent from stacks-core v3.0 and newer
-    pub tenure_height: Option<u64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksBlockMetadataRewardSet {
-    pub pox_ustx_threshold: String,
-    pub rewarded_addresses: Vec<String>,
-    pub signers: Option<Vec<StacksBlockMetadataRewardSetSigner>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksBlockMetadataRewardSetSigner {
-    pub signing_key: String,
-    pub weight: u32,
-    pub stacked_amt: String,
-}
-
 /// BitcoinBlock contain an array of Transactions that occurred at a particular
 /// BlockIdentifier. A hard requirement for blocks returned by Rosetta
 /// implementations is that they MUST be _inalterable_: once a client has
@@ -175,155 +94,6 @@ pub struct Timestamp(i64);
 /// Transactions contain an array of Operations that are attributable to the
 /// same TransactionIdentifier.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksTransactionData {
-    pub transaction_identifier: TransactionIdentifier,
-    pub operations: Vec<Operation>,
-    /// Transactions that are related to other transactions should include the
-    /// transaction_identifier of these transactions in the metadata.
-    pub metadata: StacksTransactionMetadata,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data")]
-pub enum StacksTransactionKind {
-    ContractCall(StacksContractCallData),
-    ContractDeployment(StacksContractDeploymentData),
-    NativeTokenTransfer,
-    Coinbase,
-    TenureChange,
-    BitcoinOp(BitcoinOpData),
-    Unsupported,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data")]
-pub enum BitcoinOpData {
-    StackSTX(StackSTXData),
-    DelegateStackSTX(DelegateStackSTXData),
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StackSTXData {
-    pub locked_amount: String,
-    pub unlock_height: String,
-    pub stacking_address: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct DelegateStackSTXData {
-    pub stacking_address: String,
-    pub amount: String,
-    pub delegate: String,
-    pub pox_address: Option<String>,
-    pub unlock_height: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksContractCallData {
-    pub contract_identifier: String,
-    pub method: String,
-    pub args: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksContractDeploymentData {
-    pub contract_identifier: String,
-    pub code: String,
-}
-
-/// Extra data for Transaction
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksTransactionMetadata {
-    pub success: bool,
-    pub raw_tx: String,
-    pub result: String,
-    pub sender: String,
-    pub nonce: u64,
-    pub fee: u64,
-    pub kind: StacksTransactionKind,
-    pub receipt: StacksTransactionReceipt,
-    pub description: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sponsor: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub execution_cost: Option<StacksTransactionExecutionCost>,
-    pub position: StacksTransactionPosition,
-    pub proof: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub contract_abi: Option<ContractInterface>,
-}
-
-/// TODO
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum StacksTransactionPosition {
-    AnchorBlock(AnchorBlockPosition),
-    MicroBlock(MicroBlockPosition),
-}
-
-impl StacksTransactionPosition {
-    pub fn anchor_block(index: usize) -> StacksTransactionPosition {
-        StacksTransactionPosition::AnchorBlock(AnchorBlockPosition { index })
-    }
-
-    pub fn micro_block(
-        micro_block_identifier: BlockIdentifier,
-        index: usize,
-    ) -> StacksTransactionPosition {
-        StacksTransactionPosition::MicroBlock(MicroBlockPosition {
-            micro_block_identifier,
-            index,
-        })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct AnchorBlockPosition {
-    index: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct MicroBlockPosition {
-    micro_block_identifier: BlockIdentifier,
-    index: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct StacksTransactionExecutionCost {
-    pub write_length: u64,
-    pub write_count: u64,
-    pub read_length: u64,
-    pub read_count: u64,
-    pub runtime: u64,
-}
-
-/// Extra event data for Transaction
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
-pub struct StacksTransactionReceipt {
-    pub mutated_contracts_radius: HashSet<String>,
-    pub mutated_assets_radius: HashSet<String>,
-    pub contract_calls_stack: HashSet<String>,
-    pub events: Vec<StacksTransactionEvent>,
-}
-
-impl StacksTransactionReceipt {
-    pub fn new(
-        mutated_contracts_radius: HashSet<String>,
-        mutated_assets_radius: HashSet<String>,
-        events: Vec<StacksTransactionEvent>,
-    ) -> StacksTransactionReceipt {
-        StacksTransactionReceipt {
-            mutated_contracts_radius,
-            mutated_assets_radius,
-            contract_calls_stack: HashSet::new(),
-            events,
-        }
-    }
-}
-
-/// Transactions contain an array of Operations that are attributable to the
-/// same TransactionIdentifier.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BitcoinTransactionData {
     pub transaction_identifier: TransactionIdentifier,
     pub operations: Vec<Operation>,
@@ -337,71 +107,11 @@ pub struct BitcoinTransactionData {
 pub struct BitcoinTransactionMetadata {
     pub inputs: Vec<TxIn>,
     pub outputs: Vec<TxOut>,
-    pub stacks_operations: Vec<StacksBaseChainOperation>,
     pub ordinal_operations: Vec<OrdinalOperation>,
     pub brc20_operation: Option<Brc20Operation>,
     pub proof: Option<String>,
     pub fee: u64,
     pub index: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StacksBaseChainOperation {
-    BlockCommitted(StacksBlockCommitmentData),
-    LeaderRegistered(KeyRegistrationData),
-    StxTransferred(TransferSTXData),
-    StxLocked(LockSTXData),
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct StacksBlockCommitmentData {
-    pub block_hash: String,
-    pub pox_cycle_index: u64,
-    pub pox_cycle_length: u64,
-    pub pox_cycle_position: u64,
-    pub pox_sats_burnt: u64,
-    pub pox_sats_transferred: Vec<PoxReward>,
-    // pub mining_address_pre_commit: Option<String>,
-    pub mining_address_post_commit: Option<String>,
-    pub mining_sats_left: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct PoxReward {
-    pub recipient_address: String,
-    pub amount: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct KeyRegistrationData;
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PobBlockCommitmentData {
-    pub signers: Vec<String>,
-    pub stacks_block_hash: String,
-    pub amount: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct BlockCommitmentData {
-    pub stacks_block_hash: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct TransferSTXData {
-    pub sender: String,
-    pub recipient: String,
-    pub amount: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct LockSTXData {
-    pub sender: String,
-    pub amount: String,
-    pub duration: u64,
 }
 
 /// The transaction_identifier uniquely identifies a transaction in a particular
@@ -668,19 +378,6 @@ pub struct BlockchainUpdatedWithReorg {
     pub confirmed_headers: Vec<BlockHeader>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(tag = "type", content = "data")]
-pub enum StacksNonConsensusEventPayloadData {
-    SignerMessage(StacksStackerDbChunk),
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct StacksNonConsensusEventData {
-    pub payload: StacksNonConsensusEventPayloadData,
-    pub received_at_ms: u64,
-    pub received_at_block: BlockIdentifier,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BlockHeader {
     pub block_identifier: BlockIdentifier,
@@ -705,188 +402,6 @@ pub struct BitcoinChainUpdatedWithReorgData {
     pub blocks_to_rollback: Vec<BitcoinBlockData>,
     pub blocks_to_apply: Vec<BitcoinBlockData>,
     pub confirmed_blocks: Vec<BitcoinBlockData>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct StacksChainUpdatedWithNonConsensusEventsData {
-    pub events: Vec<StacksNonConsensusEventData>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub enum StacksChainEvent {
-    ChainUpdatedWithBlocks(StacksChainUpdatedWithBlocksData),
-    ChainUpdatedWithReorg(StacksChainUpdatedWithReorgData),
-    ChainUpdatedWithMicroblocks(StacksChainUpdatedWithMicroblocksData),
-    ChainUpdatedWithMicroblocksReorg(StacksChainUpdatedWithMicroblocksReorgData),
-    ChainUpdatedWithNonConsensusEvents(StacksChainUpdatedWithNonConsensusEventsData),
-}
-
-impl StacksChainEvent {
-    pub fn get_confirmed_blocks(self) -> Vec<StacksBlockData> {
-        match self {
-            StacksChainEvent::ChainUpdatedWithBlocks(event) => event.confirmed_blocks,
-            StacksChainEvent::ChainUpdatedWithReorg(event) => event.confirmed_blocks,
-            _ => vec![],
-        }
-    }
-
-    pub fn get_latest_block_identifier(&self) -> Option<&BlockIdentifier> {
-        match self {
-            StacksChainEvent::ChainUpdatedWithBlocks(event) => event
-                .new_blocks
-                .last()
-                .and_then(|b| Some(&b.block.block_identifier)),
-            StacksChainEvent::ChainUpdatedWithReorg(event) => event
-                .blocks_to_apply
-                .last()
-                .and_then(|b| Some(&b.block.block_identifier)),
-            StacksChainEvent::ChainUpdatedWithMicroblocks(event) => event
-                .new_microblocks
-                .first()
-                .and_then(|b| Some(&b.metadata.anchor_block_identifier)),
-            StacksChainEvent::ChainUpdatedWithMicroblocksReorg(event) => event
-                .microblocks_to_apply
-                .first()
-                .and_then(|b| Some(&b.metadata.anchor_block_identifier)),
-            StacksChainEvent::ChainUpdatedWithNonConsensusEvents(_) => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct StacksBlockUpdate {
-    pub block: StacksBlockData,
-    pub parent_microblocks_to_rollback: Vec<StacksMicroblockData>,
-    pub parent_microblocks_to_apply: Vec<StacksMicroblockData>,
-}
-
-impl StacksBlockUpdate {
-    pub fn new(block: StacksBlockData) -> StacksBlockUpdate {
-        StacksBlockUpdate {
-            block,
-            parent_microblocks_to_rollback: vec![],
-            parent_microblocks_to_apply: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct StacksChainUpdatedWithBlocksData {
-    pub new_blocks: Vec<StacksBlockUpdate>,
-    pub confirmed_blocks: Vec<StacksBlockData>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct StacksChainUpdatedWithReorgData {
-    pub blocks_to_rollback: Vec<StacksBlockUpdate>,
-    pub blocks_to_apply: Vec<StacksBlockUpdate>,
-    pub confirmed_blocks: Vec<StacksBlockData>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct StacksChainUpdatedWithMicroblocksData {
-    pub new_microblocks: Vec<StacksMicroblockData>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct StacksChainUpdatedWithMicroblocksReorgData {
-    pub microblocks_to_rollback: Vec<StacksMicroblockData>,
-    pub microblocks_to_apply: Vec<StacksMicroblockData>,
-}
-
-#[derive(
-    Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize, JsonSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum StacksNetwork {
-    Simnet,
-    Devnet,
-    Testnet,
-    Mainnet,
-}
-
-impl std::fmt::Display for StacksNetwork {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-impl StacksNetwork {
-    pub fn from_str(network: &str) -> Result<StacksNetwork, String> {
-        let value = match network {
-            "devnet" => StacksNetwork::Devnet,
-            "testnet" => StacksNetwork::Testnet,
-            "mainnet" => StacksNetwork::Mainnet,
-            "simnet" => StacksNetwork::Simnet,
-            _ => {
-                return Err(format!(
-                    "network '{}' unsupported (mainnet, testnet, devnet, simnet)",
-                    network
-                ))
-            }
-        };
-        Ok(value)
-    }
-
-    pub fn as_str(&self) -> &str {
-        match self {
-            StacksNetwork::Devnet => "devnet",
-            StacksNetwork::Testnet => "testnet",
-            StacksNetwork::Mainnet => "mainnet",
-            StacksNetwork::Simnet => "simnet",
-        }
-    }
-
-    pub fn is_simnet(&self) -> bool {
-        match self {
-            StacksNetwork::Simnet => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_testnet(&self) -> bool {
-        match self {
-            StacksNetwork::Testnet => true,
-            _ => false,
-        }
-    }
-
-    pub fn either_devnet_or_testnet(&self) -> bool {
-        match self {
-            StacksNetwork::Devnet | StacksNetwork::Testnet => true,
-            _ => false,
-        }
-    }
-
-    pub fn either_testnet_or_mainnet(&self) -> bool {
-        match self {
-            StacksNetwork::Mainnet | StacksNetwork::Testnet => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_devnet(&self) -> bool {
-        match self {
-            StacksNetwork::Devnet => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_mainnet(&self) -> bool {
-        match self {
-            StacksNetwork::Mainnet => true,
-            _ => false,
-        }
-    }
-
-    pub fn get_networks(&self) -> (BitcoinNetwork, StacksNetwork) {
-        match &self {
-            StacksNetwork::Simnet => (BitcoinNetwork::Regtest, StacksNetwork::Simnet),
-            StacksNetwork::Devnet => (BitcoinNetwork::Testnet, StacksNetwork::Devnet),
-            StacksNetwork::Testnet => (BitcoinNetwork::Testnet, StacksNetwork::Testnet),
-            StacksNetwork::Mainnet => (BitcoinNetwork::Mainnet, StacksNetwork::Mainnet),
-        }
-    }
 }
 
 #[allow(dead_code)]
@@ -935,44 +450,13 @@ impl BitcoinNetwork {
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum BitcoinBlockSignaling {
-    Stacks(StacksNodeConfig),
     ZeroMQ(String),
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-pub struct StacksNodeConfig {
-    pub rpc_url: String,
-    pub ingestion_port: u16,
-}
-
-impl StacksNodeConfig {
-    pub fn new(rpc_url: String, ingestion_port: u16) -> StacksNodeConfig {
-        StacksNodeConfig {
-            rpc_url,
-            ingestion_port,
-        }
-    }
-
-    pub fn default_localhost(ingestion_port: u16) -> StacksNodeConfig {
-        StacksNodeConfig {
-            rpc_url: DEFAULT_STACKS_NODE_RPC.to_string(),
-            ingestion_port,
-        }
-    }
-}
-
 impl BitcoinBlockSignaling {
-    pub fn should_ignore_bitcoin_block_signaling_through_stacks(&self) -> bool {
-        match &self {
-            BitcoinBlockSignaling::Stacks(_) => false,
-            _ => true,
-        }
-    }
-
     pub fn is_bitcoind_zmq_block_signaling_expected(&self) -> bool {
         match &self {
-            BitcoinBlockSignaling::ZeroMQ(_) => false,
-            _ => true,
+            _ => false,
         }
     }
 }
