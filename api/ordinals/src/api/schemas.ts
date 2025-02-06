@@ -20,7 +20,7 @@ Here are the key features of the Ordinals API:
 - **REST JSON Endpoints with ETag Caching**: The Ordinals API provides easy-to-use REST endpoints that return responses in JSON format. It also supports ETag caching, which allows you to cache responses based on inscriptions. This helps optimize performance and reduce unnecessary requests.
 
 
-The source code for this project is available in our [GitHub repository](https://github.com/hirosystems/ordinals-api). You can explore the codebase, contribute, and raise issues or pull requests.
+The source code for this project is available in our [GitHub repository](https://github.com/hirosystems/ordhook). You can explore the codebase, contribute, and raise issues or pull requests.
       `,
       version: SERVER_VERSION.tag,
     },
