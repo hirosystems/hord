@@ -504,7 +504,7 @@ mod test {
                 VerifiedBrc20TokenDeployData,
             },
         },
-        db::{pg_test_clear_db, pg_test_connection, pg_test_connection_pool},
+        db::{pg_reset_db, pg_test_connection, pg_test_connection_pool},
     };
 
     use super::Brc20MemoryCache;
@@ -658,7 +658,7 @@ mod test {
                     )))
             );
         }
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         Ok(())
     }
 
@@ -760,7 +760,7 @@ mod test {
                 )
                 .await?)
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 }
