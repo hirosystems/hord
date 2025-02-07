@@ -2,12 +2,15 @@ use super::types::{
     append_error_context, validate_txid, ChainhookInstance, ExactMatchingRule, HookAction,
     MatchingRule, PoxConfig, TxinPredicate,
 };
-use crate::{observer::EventObserverConfig, utils::{Context, MAX_BLOCK_HEIGHTS_ENTRIES}};
+use crate::{
+    observer::EventObserverConfig,
+    utils::{Context, MAX_BLOCK_HEIGHTS_ENTRIES},
+};
 
 use bitcoincore_rpc_json::bitcoin::{address::Payload, Address};
 use chainhook_types::{
     BitcoinBlockData, BitcoinChainEvent, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
-    StacksBaseChainOperation, TransactionIdentifier,
+    TransactionIdentifier,
 };
 use schemars::JsonSchema;
 
@@ -21,7 +24,8 @@ use serde::{de, Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    str::FromStr, time::Duration,
+    str::FromStr,
+    time::Duration,
 };
 
 use reqwest::RequestBuilder;
@@ -267,7 +271,6 @@ pub enum BitcoinPredicateType {
     Txid(ExactMatchingRule),
     Inputs(InputPredicate),
     Outputs(OutputPredicate),
-    StacksProtocol(StacksOperations),
     OrdinalsProtocol(OrdinalOperations),
 }
 
@@ -299,7 +302,6 @@ impl BitcoinPredicateType {
                     ));
                 }
             }
-            BitcoinPredicateType::StacksProtocol(_) => {}
             BitcoinPredicateType::OrdinalsProtocol(_) => {}
         }
         Ok(())
@@ -506,18 +508,14 @@ pub struct BitcoinChainhookOccurrencePayload {
 }
 
 impl BitcoinChainhookOccurrencePayload {
-    pub fn from_trigger(
-        trigger: BitcoinTriggerChainhook<'_>,
-    ) -> BitcoinChainhookOccurrencePayload {
+    pub fn from_trigger(trigger: BitcoinTriggerChainhook<'_>) -> BitcoinChainhookOccurrencePayload {
         BitcoinChainhookOccurrencePayload {
             apply: trigger
                 .apply
                 .into_iter()
                 .map(|(transactions, block)| {
                     let mut block = block.clone();
-                    block.transactions = transactions
-                        .into_iter().cloned()
-                        .collect::<Vec<_>>();
+                    block.transactions = transactions.into_iter().cloned().collect::<Vec<_>>();
                     BitcoinTransactionPayload { block }
                 })
                 .collect::<Vec<_>>(),
@@ -526,9 +524,7 @@ impl BitcoinChainhookOccurrencePayload {
                 .into_iter()
                 .map(|(transactions, block)| {
                     let mut block = block.clone();
-                    block.transactions = transactions
-                        .into_iter().cloned()
-                        .collect::<Vec<_>>();
+                    block.transactions = transactions.into_iter().cloned().collect::<Vec<_>>();
                     BitcoinTransactionPayload { block }
                 })
                 .collect::<Vec<_>>(),
@@ -725,13 +721,6 @@ pub fn serialize_bitcoin_transactions_to_json(
                 vec![]
             };
             metadata.insert("outputs".into(), json!(outputs));
-
-            let stacks_ops = if transaction.metadata.stacks_operations.is_empty() {
-                vec![]
-            } else {
-                transaction.metadata.stacks_operations.clone()
-            };
-            metadata.insert("stacks_operations".into(), json!(stacks_ops));
 
             let ordinals_ops = if transaction.metadata.ordinal_operations.is_empty() {
                 vec![]
@@ -955,46 +944,6 @@ impl BitcoinPredicateType {
             BitcoinPredicateType::Inputs(InputPredicate::WitnessScript(_)) => {
                 // TODO(lgalabru)
                 unimplemented!()
-            }
-            BitcoinPredicateType::StacksProtocol(StacksOperations::StackerRewarded) => {
-                for op in tx.metadata.stacks_operations.iter() {
-                    if let StacksBaseChainOperation::BlockCommitted(_) = op {
-                        return true;
-                    }
-                }
-                false
-            }
-            BitcoinPredicateType::StacksProtocol(StacksOperations::BlockCommitted) => {
-                for op in tx.metadata.stacks_operations.iter() {
-                    if let StacksBaseChainOperation::BlockCommitted(_) = op {
-                        return true;
-                    }
-                }
-                false
-            }
-            BitcoinPredicateType::StacksProtocol(StacksOperations::LeaderRegistered) => {
-                for op in tx.metadata.stacks_operations.iter() {
-                    if let StacksBaseChainOperation::LeaderRegistered(_) = op {
-                        return true;
-                    }
-                }
-                false
-            }
-            BitcoinPredicateType::StacksProtocol(StacksOperations::StxTransferred) => {
-                for op in tx.metadata.stacks_operations.iter() {
-                    if let StacksBaseChainOperation::StxTransferred(_) = op {
-                        return true;
-                    }
-                }
-                false
-            }
-            BitcoinPredicateType::StacksProtocol(StacksOperations::StxLocked) => {
-                for op in tx.metadata.stacks_operations.iter() {
-                    if let StacksBaseChainOperation::StxLocked(_) = op {
-                        return true;
-                    }
-                }
-                false
             }
             BitcoinPredicateType::OrdinalsProtocol(OrdinalOperations::InscriptionFeed(
                 feed_data,

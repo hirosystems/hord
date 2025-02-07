@@ -1,21 +1,14 @@
 pub mod bitcoin;
 pub mod fork_scratch_pad;
-pub mod stacks;
 
-use crate::{
-    chainhooks::types::PoxConfig,
-    utils::{AbstractBlock, Context},
-};
+use crate::utils::{AbstractBlock, Context};
 
 use chainhook_types::{
     BitcoinBlockSignaling, BitcoinNetwork, BlockHeader, BlockIdentifier, BlockchainEvent,
-    StacksBlockData, StacksChainEvent, StacksNetwork, StacksNodeConfig,
 };
 use hiro_system_kit::slog;
-use rocket::serde::json::Value as JsonValue;
 
-use stacks::StacksBlockPool;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 use self::fork_scratch_pad::ForkScratchPad;
 
@@ -23,24 +16,6 @@ use self::fork_scratch_pad::ForkScratchPad;
 pub struct AssetClassCache {
     pub symbol: String,
     pub decimals: u8,
-}
-
-pub struct StacksChainContext {
-    asset_class_map: HashMap<String, AssetClassCache>,
-    pox_config: PoxConfig,
-}
-
-impl StacksChainContext {
-    pub fn new(network: &StacksNetwork) -> StacksChainContext {
-        StacksChainContext {
-            asset_class_map: HashMap::new(),
-            pox_config: match network {
-                StacksNetwork::Mainnet => PoxConfig::mainnet_default(),
-                StacksNetwork::Testnet => PoxConfig::testnet_default(),
-                _ => PoxConfig::devnet_default(),
-            },
-        }
-    }
 }
 
 pub struct BitcoinChainContext {}
@@ -60,48 +35,28 @@ impl BitcoinChainContext {
 #[derive(Debug, Clone, PartialEq)]
 pub struct IndexerConfig {
     pub bitcoin_network: BitcoinNetwork,
-    pub stacks_network: StacksNetwork,
     pub bitcoind_rpc_url: String,
     pub bitcoind_rpc_username: String,
     pub bitcoind_rpc_password: String,
     pub bitcoin_block_signaling: BitcoinBlockSignaling,
 }
 
-impl IndexerConfig {
-    pub fn get_stacks_node_config(&self) -> &StacksNodeConfig {
-        match self.bitcoin_block_signaling {
-            BitcoinBlockSignaling::Stacks(ref config) => config,
-            _ => unreachable!(),
-        }
-    }
-}
-
 pub struct Indexer {
     pub config: IndexerConfig,
-    stacks_blocks_pool: StacksBlockPool,
     bitcoin_blocks_pool: ForkScratchPad,
-    pub stacks_context: StacksChainContext,
     pub bitcoin_context: BitcoinChainContext,
 }
 
 impl Indexer {
     pub fn new(config: IndexerConfig) -> Indexer {
-        let stacks_blocks_pool = StacksBlockPool::new();
         let bitcoin_blocks_pool = ForkScratchPad::new();
-        let stacks_context = StacksChainContext::new(&config.stacks_network);
         let bitcoin_context = BitcoinChainContext::new();
 
         Indexer {
             config,
-            stacks_blocks_pool,
             bitcoin_blocks_pool,
-            stacks_context,
             bitcoin_context,
         }
-    }
-
-    pub fn seed_stacks_block_pool(&mut self, blocks: Vec<StacksBlockData>, ctx: &Context) {
-        self.stacks_blocks_pool.seed_block_pool(blocks, ctx);
     }
 
     pub fn handle_bitcoin_header(
@@ -110,97 +65,6 @@ impl Indexer {
         ctx: &Context,
     ) -> Result<Option<BlockchainEvent>, String> {
         self.bitcoin_blocks_pool.process_header(header, ctx)
-    }
-
-    pub fn standardize_stacks_marshalled_block(
-        &mut self,
-        marshalled_block: JsonValue,
-        ctx: &Context,
-    ) -> Result<StacksBlockData, String> {
-        stacks::standardize_stacks_marshalled_block(
-            &self.config,
-            marshalled_block,
-            &mut self.stacks_context,
-            ctx,
-        )
-    }
-
-    pub fn process_stacks_block(
-        &mut self,
-        block: StacksBlockData,
-        ctx: &Context,
-    ) -> Result<Option<StacksChainEvent>, String> {
-        self.stacks_blocks_pool.process_block(block, ctx)
-    }
-
-    pub fn handle_stacks_serialized_microblock_trail(
-        &mut self,
-        serialized_microblock_trail: &str,
-        ctx: &Context,
-    ) -> Result<Option<StacksChainEvent>, String> {
-        let microblocks = stacks::standardize_stacks_serialized_microblock_trail(
-            &self.config,
-            serialized_microblock_trail,
-            &mut self.stacks_context,
-            ctx,
-        )?;
-        self.stacks_blocks_pool
-            .process_microblocks(microblocks, ctx)
-    }
-
-    pub fn handle_stacks_marshalled_microblock_trail(
-        &mut self,
-        marshalled_microblock_trail: JsonValue,
-        ctx: &Context,
-    ) -> Result<Option<StacksChainEvent>, String> {
-        let microblocks = stacks::standardize_stacks_marshalled_microblock_trail(
-            &self.config,
-            marshalled_microblock_trail,
-            &mut self.stacks_context,
-            ctx,
-        )?;
-        self.stacks_blocks_pool
-            .process_microblocks(microblocks, ctx)
-    }
-
-    pub fn get_pox_config(&mut self) -> PoxConfig {
-        self.stacks_context.pox_config.clone()
-    }
-
-    #[cfg(feature = "stacks-signers")]
-    pub fn handle_stacks_marshalled_stackerdb_chunk(
-        &mut self,
-        marshalled_stackerdb_chunks: JsonValue,
-        receipt_time_ms: u128,
-        ctx: &Context,
-    ) -> Result<Option<StacksChainEvent>, String> {
-        use chainhook_types::{
-            StacksChainUpdatedWithNonConsensusEventsData, StacksNonConsensusEventData,
-            StacksNonConsensusEventPayloadData,
-        };
-        let Some(chain_tip) = self.stacks_blocks_pool.get_canonical_fork_chain_tip() else {
-            return Err("StackerDB chunk received with no canonical chain tip".to_string());
-        };
-        let chunks = stacks::standardize_stacks_marshalled_stackerdb_chunks(
-            marshalled_stackerdb_chunks,
-            ctx,
-        )?;
-        if chunks.len() > 0 {
-            Ok(Some(StacksChainEvent::ChainUpdatedWithNonConsensusEvents(
-                StacksChainUpdatedWithNonConsensusEventsData {
-                    events: chunks
-                        .into_iter()
-                        .map(|chunk| StacksNonConsensusEventData {
-                            payload: StacksNonConsensusEventPayloadData::SignerMessage(chunk),
-                            received_at_ms: receipt_time_ms as u64,
-                            received_at_block: chain_tip.clone(),
-                        })
-                        .collect(),
-                },
-            )))
-        } else {
-            Ok(None)
-        }
     }
 }
 

@@ -36,7 +36,7 @@ hyper = { version = "=0.14.27", features = ["http1", "client"] }
 hex = "0.4.3"
 threadpool = "1.8.1"
 rand = "0.8.5"
-zmq = { version = "0.10.0", optional = true }
+zmq = "0.10.0"
 dashmap = "5.4.0"
 fxhash = "0.2.1"
 lazy_static = "1.4.0"
@@ -52,7 +52,6 @@ test-case = "3.1.0"
 
 [features]
 default = ["hiro-system-kit/log"]
-zeromq = ["zmq"]
 stacks-signers = []
 debug = ["hiro-system-kit/debug"]
 release = ["hiro-system-kit/release_debug", "hiro-system-kit/full_log_level_prefix"]

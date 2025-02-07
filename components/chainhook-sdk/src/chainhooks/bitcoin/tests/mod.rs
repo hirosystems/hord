@@ -128,7 +128,6 @@ fn script_pubkey_evaluation(output: OutputPredicate, script_pubkey: &str, matche
             index: 0,
             proof: None,
             inputs: vec![],
-            stacks_operations: vec![],
             ordinal_operations: vec![],
             brc20_operation: None,
             outputs,
@@ -212,7 +211,6 @@ fn it_serdes_brc20_payload(tick: String) {
             inputs: vec![],
             outputs: vec![],
             ordinal_operations: vec![],
-            stacks_operations: vec![],
             brc20_operation: Some(Brc20Operation::Deploy(Brc20TokenDeployData {
                 tick,
                 max: "21000000.000000".to_string(),

@@ -133,8 +133,6 @@ lazy_static! {
     )), 
     Some(vec![INVALID_DESCRIPTOR_ERR.clone()]); "outputs invalid descriptor"
 )]
-// BitcoinPredicateType::StacksProtocol
-#[test_case(&BitcoinPredicateType::StacksProtocol(StacksOperations::StackerRewarded), None; "stacks protocol")]
 // BitcoinPredicateType::OrdinalsProtocol
 #[test_case(&BitcoinPredicateType::OrdinalsProtocol(OrdinalOperations::InscriptionFeed(InscriptionFeedData { meta_protocols: None})), None; "ordinals protocol")]
 fn it_validates_bitcoin_predicates(predicate: &BitcoinPredicateType, expected_err: Option<Vec<String>>) {

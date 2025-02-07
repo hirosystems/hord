@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use chainhook_types::{BitcoinNetwork, StacksNetwork};
+use chainhook_types::BitcoinNetwork;
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
 
@@ -8,12 +8,9 @@ use schemars::JsonSchema;
 
 use crate::chainhooks::bitcoin::BitcoinChainhookInstance;
 use crate::chainhooks::bitcoin::BitcoinChainhookSpecificationNetworkMap;
-use crate::chainhooks::stacks::StacksChainhookInstance;
-use crate::chainhooks::stacks::StacksChainhookSpecificationNetworkMap;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ChainhookStore {
-    pub stacks_chainhooks: Vec<StacksChainhookInstance>,
     pub bitcoin_chainhooks: Vec<BitcoinChainhookInstance>,
 }
 
@@ -26,24 +23,18 @@ impl Default for ChainhookStore {
 impl ChainhookStore {
     pub fn new() -> ChainhookStore {
         ChainhookStore {
-            stacks_chainhooks: vec![],
             bitcoin_chainhooks: vec![],
         }
     }
 
     pub fn register_instance_from_network_map(
         &mut self,
-        networks: (&BitcoinNetwork, &StacksNetwork),
+        network: &BitcoinNetwork,
         hook: ChainhookSpecificationNetworkMap,
     ) -> Result<ChainhookInstance, String> {
         let spec = match hook {
-            ChainhookSpecificationNetworkMap::Stacks(hook) => {
-                let spec = hook.into_specification_for_network(networks.1)?;
-                self.stacks_chainhooks.push(spec.clone());
-                ChainhookInstance::Stacks(spec)
-            }
             ChainhookSpecificationNetworkMap::Bitcoin(hook) => {
-                let spec = hook.into_specification_for_network(networks.0)?;
+                let spec = hook.into_specification_for_network(network)?;
                 self.bitcoin_chainhooks.push(spec.clone());
                 ChainhookInstance::Bitcoin(spec)
             }
@@ -53,15 +44,6 @@ impl ChainhookStore {
 
     pub fn enable_instance(&mut self, predicate_spec: &mut ChainhookInstance) {
         match predicate_spec {
-            ChainhookInstance::Stacks(spec_to_enable) => {
-                for spec in self.stacks_chainhooks.iter_mut() {
-                    if spec.uuid.eq(&spec_to_enable.uuid) {
-                        spec.enabled = true;
-                        spec_to_enable.enabled = true;
-                        break;
-                    }
-                }
-            }
             ChainhookInstance::Bitcoin(spec_to_enable) => {
                 for spec in self.bitcoin_chainhooks.iter_mut() {
                     if spec.uuid.eq(&spec_to_enable.uuid) {
@@ -76,29 +58,12 @@ impl ChainhookStore {
 
     pub fn register_instance(&mut self, spec: ChainhookInstance) -> Result<(), String> {
         match spec {
-            ChainhookInstance::Stacks(spec) => {
-                let spec = spec.clone();
-                self.stacks_chainhooks.push(spec);
-            }
             ChainhookInstance::Bitcoin(spec) => {
                 let spec = spec.clone();
                 self.bitcoin_chainhooks.push(spec);
             }
         };
         Ok(())
-    }
-
-    pub fn deregister_stacks_hook(&mut self, hook_uuid: String) -> Option<StacksChainhookInstance> {
-        let mut i = 0;
-        while i < self.stacks_chainhooks.len() {
-            if self.stacks_chainhooks[i].uuid == hook_uuid {
-                let hook = self.stacks_chainhooks.remove(i);
-                return Some(hook);
-            } else {
-                i += 1;
-            }
-        }
-        None
     }
 
     pub fn deregister_bitcoin_hook(
@@ -115,18 +80,6 @@ impl ChainhookStore {
             }
         }
         None
-    }
-
-    pub fn expire_stacks_hook(&mut self, hook_uuid: String, block_height: u64) {
-        let mut i = 0;
-        while i < self.stacks_chainhooks.len() {
-            if ChainhookInstance::stacks_key(&self.stacks_chainhooks[i].uuid) == hook_uuid {
-                self.stacks_chainhooks[i].expired_at = Some(block_height);
-                break;
-            } else {
-                i += 1;
-            }
-        }
     }
 
     pub fn expire_bitcoin_hook(&mut self, hook_uuid: String, block_height: u64) {
@@ -147,13 +100,8 @@ impl Serialize for ChainhookStore {
     where
         S: Serializer,
     {
-        let mut seq = serializer.serialize_seq(Some(
-            self.bitcoin_chainhooks.len() + self.stacks_chainhooks.len(),
-        ))?;
+        let mut seq = serializer.serialize_seq(Some(self.bitcoin_chainhooks.len()))?;
         for chainhook in self.bitcoin_chainhooks.iter() {
-            seq.serialize_element(chainhook)?;
-        }
-        for chainhook in self.stacks_chainhooks.iter() {
             seq.serialize_element(chainhook)?;
         }
         seq.end()
@@ -164,7 +112,6 @@ impl Serialize for ChainhookStore {
 #[serde(rename_all = "snake_case")]
 pub enum ChainhookInstance {
     Bitcoin(BitcoinChainhookInstance),
-    Stacks(StacksChainhookInstance),
 }
 
 impl ChainhookInstance {
@@ -183,7 +130,6 @@ impl ChainhookInstance {
     pub fn key(&self) -> String {
         match &self {
             Self::Bitcoin(data) => Self::bitcoin_key(&data.uuid),
-            Self::Stacks(data) => Self::stacks_key(&data.uuid),
         }
     }
 
@@ -196,7 +142,6 @@ impl ChainhookInstance {
     pub fn uuid(&self) -> &str {
         match &self {
             Self::Bitcoin(data) => &data.uuid,
-            Self::Stacks(data) => &data.uuid,
         }
     }
 }
@@ -205,7 +150,6 @@ impl ChainhookInstance {
 #[serde(rename_all = "snake_case", tag = "chain")]
 pub enum ChainhookSpecificationNetworkMap {
     Bitcoin(BitcoinChainhookSpecificationNetworkMap),
-    Stacks(StacksChainhookSpecificationNetworkMap),
 }
 
 impl ChainhookSpecificationNetworkMap {
@@ -228,23 +172,6 @@ impl ChainhookSpecificationNetworkMap {
                     return Err(errors.join("\n"));
                 }
             }
-            Self::Stacks(data) => {
-                let mut errors = vec![];
-                for (network, spec) in data.networks.iter() {
-                    if let Err(e) = spec.validate() {
-                        errors.append(&mut append_error_context(
-                            &format!(
-                                "invalid Stacks predicate '{}' for network {}",
-                                data.name, network
-                            ),
-                            e,
-                        ));
-                    }
-                }
-                if !errors.is_empty() {
-                    return Err(errors.join("\n"));
-                }
-            }
         }
         Ok(())
     }
@@ -252,7 +179,6 @@ impl ChainhookSpecificationNetworkMap {
     pub fn get_uuid(&self) -> &str {
         match &self {
             Self::Bitcoin(data) => &data.uuid,
-            Self::Stacks(data) => &data.uuid,
         }
     }
 
@@ -303,10 +229,7 @@ impl HttpHook {
             errors.push(format!("url string must be a valid Url: {}", e));
         }
         if let Err(e) = reqwest::header::HeaderValue::from_str(&self.authorization_header) {
-            errors.push(format!(
-                "auth header must be a valid header value: {}",
-                e
-            ));
+            errors.push(format!("auth header must be a valid header value: {}", e));
         };
 
         if errors.is_empty() {

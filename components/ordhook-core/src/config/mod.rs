@@ -108,11 +108,9 @@ impl Config {
             bitcoind_rpc_url: self.network.bitcoind_rpc_url.clone(),
             bitcoin_block_signaling: self.network.bitcoin_block_signaling.clone(),
             bitcoin_network: self.network.bitcoin_network.clone(),
-            stacks_network: StacksNetwork::Devnet,
             prometheus_monitoring_port: None,
-            registered_chainhooks: ChainhookStore { stacks_chainhooks: vec![], bitcoin_chainhooks: vec![] },
+            registered_chainhooks: ChainhookStore { bitcoin_chainhooks: vec![] },
             predicates_config: PredicatesConfig { payload_http_request_timeout_ms: None },
-            display_stacks_ingestion_logs: false,
         }
     }
 
