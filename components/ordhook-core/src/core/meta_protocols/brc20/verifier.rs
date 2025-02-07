@@ -456,7 +456,7 @@ mod test {
             )
             .await
         };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -569,7 +569,7 @@ mod test {
             )
             .await
         };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -656,7 +656,7 @@ mod test {
             )
             .await
         };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -733,7 +733,7 @@ mod test {
             )
             .await
         };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -813,7 +813,7 @@ mod test {
             )
             .await
         };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -977,7 +977,7 @@ mod test {
                 )
                 .await
             };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -1104,7 +1104,7 @@ mod test {
             ).await?;
                 verify_brc20_transfers(&vec![(&tx, &transfer)], &mut cache, &client, &ctx).await?
             };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         let Some(result) = result.first() else {
             return Ok(None);
         };
@@ -1216,7 +1216,7 @@ mod test {
                     .await?;
                 verify_brc20_transfers(&vec![(&tx, &transfer)], &mut cache, &client, &ctx).await?
             };
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         let Some(result) = result.first() else {
             return Ok(None);
         };

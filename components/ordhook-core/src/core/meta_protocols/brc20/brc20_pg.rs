@@ -1031,7 +1031,7 @@ mod test {
                 );
             }
         }
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         Ok(())
     }
 }

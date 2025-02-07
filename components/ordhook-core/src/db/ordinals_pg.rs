@@ -1401,7 +1401,7 @@ mod test {
                 assert_eq!(Some(799999), get_chain_tip_block_height(&client).await?);
             }
         }
-        pg_reset_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         Ok(())
     }
 }
