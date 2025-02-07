@@ -4,7 +4,7 @@ use chainhook_postgres::{
     deadpool_postgres::GenericClient,
     tokio_postgres::{types::ToSql, Client},
     types::{PgNumericU128, PgNumericU64},
-    utils, FromPgRow,
+    utils, FromPgRow, BATCH_QUERY_CHUNK_SIZE,
 };
 use chainhook_sdk::types::{
     BitcoinBlockData, Brc20BalanceData, Brc20Operation, Brc20TokenDeployData, Brc20TransferData,
@@ -79,24 +79,43 @@ pub async fn get_token_available_balance_for_address<T: GenericClient>(
     Ok(Some(supply.0))
 }
 
-pub async fn get_unsent_token_transfer<T: GenericClient>(
-    ordinal_number: u64,
+pub async fn get_unsent_token_transfers<T: GenericClient>(
+    ordinal_numbers: &Vec<u64>,
     client: &T,
-) -> Result<Option<DbOperation>, String> {
-    let row = client
-        .query_opt(
-            "SELECT * FROM operations
-            WHERE ordinal_number = $1 AND operation = 'transfer'
-            AND NOT EXISTS (SELECT 1 FROM operations WHERE ordinal_number = $1 AND operation = 'transfer_send')
-            LIMIT 1",
-            &[&PgNumericU64(ordinal_number)],
-        )
-        .await
-        .map_err(|e| format!("get_unsent_token_transfer: {e}"))?;
-    let Some(row) = row else {
-        return Ok(None);
-    };
-    Ok(Some(DbOperation::from_pg_row(&row)))
+) -> Result<Vec<DbOperation>, String> {
+    if ordinal_numbers.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut results = vec![];
+    // We can afford a larger chunk size here because we're only using one parameter per ordinal number value.
+    for chunk in ordinal_numbers.chunks(5000) {
+        let mut wrapped = Vec::with_capacity(chunk.len());
+        for n in chunk {
+            wrapped.push(PgNumericU64(*n));
+        }
+        let mut params = vec![];
+        for number in wrapped.iter() {
+            params.push(number);
+        }
+        let rows = client
+            .query(
+                "SELECT *
+                FROM operations o
+                WHERE operation = 'transfer'
+                    AND o.ordinal_number = ANY($1)
+                    AND NOT EXISTS (
+                        SELECT 1 FROM operations
+                        WHERE ordinal_number = o.ordinal_number
+                        AND operation = 'transfer_send'
+                    )
+                LIMIT 1",
+                &[&params],
+            )
+            .await
+            .map_err(|e| format!("get_unsent_token_transfers: {e}"))?;
+        results.extend(rows.iter().map(|row| DbOperation::from_pg_row(row)));
+    }
+    Ok(results)
 }
 
 pub async fn insert_tokens<T: GenericClient>(
@@ -106,7 +125,7 @@ pub async fn insert_tokens<T: GenericClient>(
     if tokens.len() == 0 {
         return Ok(());
     }
-    for chunk in tokens.chunks(500) {
+    for chunk in tokens.chunks(BATCH_QUERY_CHUNK_SIZE) {
         let mut params: Vec<&(dyn ToSql + Sync)> = vec![];
         for row in chunk.iter() {
             params.push(&row.ticker);
@@ -148,7 +167,7 @@ pub async fn insert_operations<T: GenericClient>(
     if operations.len() == 0 {
         return Ok(());
     }
-    for chunk in operations.chunks(500) {
+    for chunk in operations.chunks(BATCH_QUERY_CHUNK_SIZE) {
         let mut params: Vec<&(dyn ToSql + Sync)> = vec![];
         for row in chunk.iter() {
             params.push(&row.ticker);
@@ -253,7 +272,11 @@ pub async fn update_address_operation_counts<T: GenericClient>(
     if counts.len() == 0 {
         return Ok(());
     }
-    for chunk in counts.keys().collect::<Vec<&String>>().chunks(500) {
+    for chunk in counts
+        .keys()
+        .collect::<Vec<&String>>()
+        .chunks(BATCH_QUERY_CHUNK_SIZE)
+    {
         let mut params: Vec<&(dyn ToSql + Sync)> = vec![];
         let mut insert_rows = 0;
         for address in chunk {
@@ -287,7 +310,11 @@ pub async fn update_token_operation_counts<T: GenericClient>(
     if counts.len() == 0 {
         return Ok(());
     }
-    for chunk in counts.keys().collect::<Vec<&String>>().chunks(500) {
+    for chunk in counts
+        .keys()
+        .collect::<Vec<&String>>()
+        .chunks(BATCH_QUERY_CHUNK_SIZE)
+    {
         let mut converted = HashMap::new();
         for tick in chunk {
             converted.insert(*tick, counts.get(*tick).unwrap().to_string());
@@ -324,7 +351,11 @@ pub async fn update_token_minted_supplies<T: GenericClient>(
     if supplies.len() == 0 {
         return Ok(());
     }
-    for chunk in supplies.keys().collect::<Vec<&String>>().chunks(500) {
+    for chunk in supplies
+        .keys()
+        .collect::<Vec<&String>>()
+        .chunks(BATCH_QUERY_CHUNK_SIZE)
+    {
         let mut converted = HashMap::new();
         for tick in chunk {
             converted.insert(*tick, supplies.get(*tick).unwrap().0.to_string());

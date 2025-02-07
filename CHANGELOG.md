@@ -1,3 +1,57 @@
+## [3.0.0-beta.5](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.4...v3.0.0-beta.5) (2025-01-29)
+
+
+### Bug Fixes
+
+* store inscription content as is ([#391](https://github.com/hirosystems/ordhook/issues/391)) ([3f10607](https://github.com/hirosystems/ordhook/commit/3f10607ba9ef1d6b0d6fd68f9779031e239c0596))
+
+## [3.0.0-beta.4](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.3...v3.0.0-beta.4) (2025-01-28)
+
+
+### Bug Fixes
+
+* **brc20:** add to_address index to operations table ([#390](https://github.com/hirosystems/ordhook/issues/390)) ([67c6035](https://github.com/hirosystems/ordhook/commit/67c6035828994dd72e7ffa72b4e405c04465acb3))
+
+## [3.0.0-beta.3](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.2...v3.0.0-beta.3) (2025-01-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* store inscription data in postgres instead of sqlite (#375)
+
+### Code Refactoring
+
+* store inscription data in postgres instead of sqlite ([#375](https://github.com/hirosystems/ordhook/issues/375)) ([4afb201](https://github.com/hirosystems/ordhook/commit/4afb2010068770078c7d9fd2ab37533352379c15))
+
+## [3.0.0-beta.2](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.1...v3.0.0-beta.2) (2024-09-24)
+
+
+### Bug Fixes
+
+* roll back ordinals db changes when brc20 db commit fails ([#367](https://github.com/hirosystems/ordhook/issues/367)) ([f4e0c79](https://github.com/hirosystems/ordhook/commit/f4e0c7935b825d2119d20c5acf08d289fe231423))
+
+## [3.0.0-beta.1](https://github.com/hirosystems/ordhook/compare/v2.2.5...v3.0.0-beta.1) (2024-09-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* support brc20 activity on scan blocks command (#350)
+* keep original deployed ticker for brc20 tokens (#349)
+
+### Features
+
+* add prometheus monitoring ([#356](https://github.com/hirosystems/ordhook/issues/356)) ([f35e1d0](https://github.com/hirosystems/ordhook/commit/f35e1d00e7940e31abcb8439b5b12a43be5023ea))
+* keep original deployed ticker for brc20 tokens ([#349](https://github.com/hirosystems/ordhook/issues/349)) ([39774a9](https://github.com/hirosystems/ordhook/commit/39774a9f867d79932826f9d50d271ee1bf45c13d))
+* support a separate storage directory for observers.sqlite ([#354](https://github.com/hirosystems/ordhook/issues/354)) ([7a65fdf](https://github.com/hirosystems/ordhook/commit/7a65fdf10728b7701cbcf7b83db92ec74d13535a))
+* support brc20 activity on scan blocks command ([#350](https://github.com/hirosystems/ordhook/issues/350)) ([caacff7](https://github.com/hirosystems/ordhook/commit/caacff7c4f3d148b37232e04030814fa3ce3b30b))
+* wait for bitcoind to be at chain tip before starting service ([#364](https://github.com/hirosystems/ordhook/issues/364)) ([d4b67bb](https://github.com/hirosystems/ordhook/commit/d4b67bb6f6ee16bac2add119f477ba42da824a98))
+
+
+### Bug Fixes
+
+* also check config when looking for brc20 db connection ([#347](https://github.com/hirosystems/ordhook/issues/347)) ([d80388b](https://github.com/hirosystems/ordhook/commit/d80388b505255117963a53206e41987e34551aaf))
+* only create brc-20 db connection and cache if required ([#357](https://github.com/hirosystems/ordhook/issues/357)) ([5692426](https://github.com/hirosystems/ordhook/commit/5692426e4b85dde1fd7aefd01dd7f25a4f969fad))
+
 ## [2.2.5](https://github.com/hirosystems/ordhook/compare/v2.2.4...v2.2.5) (2024-07-23)
 
 
