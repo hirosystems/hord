@@ -40,7 +40,7 @@ jobs:
       - name: Install cargo-mutants
         id: install_cargo_mutants
         run: |
-          cargo install --version 24.11.2 cargo-mutants --locked # v24.11.2
+          cargo install --version 25.0.0 cargo-mutants --locked
 
       - name: Install cargo-nextest
         id: install_cargo_nextest
