@@ -232,7 +232,11 @@ pub async fn verify_brc20_transfers(
     )>,
     String,
 > {
-    try_debug!(ctx, "BRC-20 verifying {} ordinal transfers", transfers.len());
+    try_debug!(
+        ctx,
+        "BRC-20 verifying {} ordinal transfers",
+        transfers.len()
+    );
 
     // Select ordinal numbers to analyze for pending BRC20 transfers.
     let mut ordinal_numbers = vec![];
@@ -280,7 +284,12 @@ pub async fn verify_brc20_transfers(
                 receiver_address: "".to_string(),
             },
         };
-        results.push((transfer_row.inscription_id, verified, (*data).clone(), (*tx_identifier).clone()));
+        results.push((
+            transfer_row.inscription_id,
+            verified,
+            (*data).clone(),
+            (*tx_identifier).clone(),
+        ));
     }
     return Ok(results);
 }
@@ -305,7 +314,7 @@ mod test {
                 VerifiedBrc20BalanceData, VerifiedBrc20Operation, VerifiedBrc20TokenDeployData,
             },
         },
-        db::{pg_test_clear_db, pg_test_connection, pg_test_connection_pool},
+        db::{pg_reset_db, pg_test_connection, pg_test_connection_pool},
     };
 
     use super::{verify_brc20_operation, verify_brc20_transfers, VerifiedBrc20TransferData};
@@ -447,7 +456,7 @@ mod test {
             )
             .await
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -560,7 +569,7 @@ mod test {
             )
             .await
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -647,7 +656,7 @@ mod test {
             )
             .await
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -724,7 +733,7 @@ mod test {
             )
             .await
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -804,7 +813,7 @@ mod test {
             )
             .await
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -968,7 +977,7 @@ mod test {
                 )
                 .await
             };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 
@@ -1095,7 +1104,7 @@ mod test {
             ).await?;
                 verify_brc20_transfers(&vec![(&tx, &transfer)], &mut cache, &client, &ctx).await?
             };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         let Some(result) = result.first() else {
             return Ok(None);
         };
@@ -1207,7 +1216,7 @@ mod test {
                     .await?;
                 verify_brc20_transfers(&vec![(&tx, &transfer)], &mut cache, &client, &ctx).await?
             };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         let Some(result) = result.first() else {
             return Ok(None);
         };
