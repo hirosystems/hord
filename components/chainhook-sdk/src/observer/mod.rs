@@ -1,40 +1,23 @@
 mod zmq;
 
-use crate::chainhooks::bitcoin::{
-    evaluate_bitcoin_chainhooks_on_chain_event, handle_bitcoin_hook_action,
-    BitcoinChainhookInstance, BitcoinChainhookOccurrence, BitcoinChainhookOccurrencePayload,
-    BitcoinTriggerChainhook,
-};
-use crate::chainhooks::types::{
-    ChainhookInstance, ChainhookSpecificationNetworkMap, ChainhookStore,
-};
-
 use crate::indexer::bitcoin::{
     build_http_client, download_and_parse_block_with_retry, standardize_bitcoin_block,
     BitcoinBlockFullBreakdown,
 };
-use crate::indexer::{Indexer, IndexerConfig};
-use crate::monitoring::{start_serving_prometheus_metrics, PrometheusMonitoring};
-use crate::utils::{send_request, Context};
+use crate::utils::Context;
 
-use bitcoincore_rpc::bitcoin::{BlockHash, Txid};
-use bitcoincore_rpc::{Auth, Client, RpcApi};
 use chainhook_types::{
     BitcoinBlockData, BitcoinBlockSignaling, BitcoinChainEvent, BitcoinChainUpdatedWithBlocksData,
-    BitcoinChainUpdatedWithReorgData, BitcoinNetwork, BlockIdentifier, BlockchainEvent, Chain,
-    TransactionIdentifier,
+    BitcoinChainUpdatedWithReorgData, BitcoinNetwork, BlockIdentifier, BlockchainEvent,
 };
 use hiro_system_kit;
 use hiro_system_kit::slog;
 use rocket::serde::Deserialize;
 use rocket::Shutdown;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::error::Error;
-use std::net::{IpAddr, Ipv4Addr};
 use std::str;
-use std::str::FromStr;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Deserialize)]
 pub struct NewTransaction {
@@ -49,41 +32,13 @@ pub enum Event {
     BitcoinChainEvent(BitcoinChainEvent),
 }
 
-pub enum DataHandlerEvent {
-    Process(BitcoinChainhookOccurrencePayload),
-    Terminate,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PredicatesConfig {
-    pub payload_http_request_timeout_ms: Option<u64>,
-}
-
-impl PredicatesConfig {
-    pub fn new() -> Self {
-        PredicatesConfig {
-            payload_http_request_timeout_ms: None,
-        }
-    }
-}
-
-impl Default for PredicatesConfig {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct EventObserverConfig {
-    pub registered_chainhooks: ChainhookStore,
-    pub predicates_config: PredicatesConfig,
-    pub bitcoin_rpc_proxy_enabled: bool,
     pub bitcoind_rpc_username: String,
     pub bitcoind_rpc_password: String,
     pub bitcoind_rpc_url: String,
     pub bitcoin_block_signaling: BitcoinBlockSignaling,
     pub bitcoin_network: BitcoinNetwork,
-    pub prometheus_monitoring_port: Option<u16>,
 }
 
 /// A builder that is used to create a general purpose [EventObserverConfig].
@@ -107,12 +62,7 @@ pub struct EventObserverConfigBuilder {
     pub bitcoind_rpc_password: Option<String>,
     pub bitcoind_rpc_url: Option<String>,
     pub bitcoind_zmq_url: Option<String>,
-    pub chainhook_stacks_block_ingestion_port: Option<u16>,
-    pub stacks_node_rpc_url: Option<String>,
-    pub display_stacks_ingestion_logs: Option<bool>,
     pub bitcoin_network: Option<String>,
-    pub stacks_network: Option<String>,
-    pub prometheus_monitoring_port: Option<u16>,
 }
 
 impl Default for EventObserverConfigBuilder {
@@ -128,12 +78,7 @@ impl EventObserverConfigBuilder {
             bitcoind_rpc_password: None,
             bitcoind_rpc_url: None,
             bitcoind_zmq_url: None,
-            chainhook_stacks_block_ingestion_port: None,
-            stacks_node_rpc_url: None,
-            display_stacks_ingestion_logs: None,
             bitcoin_network: None,
-            stacks_network: None,
-            prometheus_monitoring_port: None,
         }
     }
 
@@ -167,37 +112,6 @@ impl EventObserverConfigBuilder {
         self
     }
 
-    /// Sets the Stacks network. Must be a valid bitcoin network string according to [StacksNetwork::from_str].
-    pub fn stacks_network(&mut self, network: &str) -> &mut Self {
-        self.stacks_network = Some(network.to_string());
-        self
-    }
-
-    /// Sets the Stacks node's RPC url.
-    pub fn stacks_node_rpc_url(&mut self, url: &str) -> &mut Self {
-        self.stacks_node_rpc_url = Some(url.to_string());
-        self
-    }
-
-    /// Sets the port at which Chainhook will observer Stacks blockchain events. The Stacks node's config should have an events_observer
-    /// entry matching this port in order to send block events the Chainhook.
-    pub fn chainhook_stacks_block_ingestion_port(&mut self, port: u16) -> &mut Self {
-        self.chainhook_stacks_block_ingestion_port = Some(port);
-        self
-    }
-
-    /// Sets whether Chainhook should display Stacks ingestion logs.
-    pub fn display_stacks_ingestion_logs(&mut self, display_logs: bool) -> &mut Self {
-        self.display_stacks_ingestion_logs = Some(display_logs);
-        self
-    }
-
-    /// Sets the Prometheus monitoring port.
-    pub fn prometheus_monitoring_port(&mut self, port: u16) -> &mut Self {
-        self.prometheus_monitoring_port = Some(port);
-        self
-    }
-
     /// Attempts to convert a [EventObserverConfigBuilder] instance into an [EventObserverConfig], filling in
     /// defaults as necessary according to [EventObserverConfig::default].
     ///
@@ -208,159 +122,17 @@ impl EventObserverConfigBuilder {
     }
 }
 
-/// A builder that is used to create an [EventObserverConfig] that is tailored for use with a bitcoind node emitting events via the ZMQ interface.
-///
-/// ## Examples
-/// ```
-/// use chainhook_sdk::observer::EventObserverConfig;
-/// use chainhook_sdk::observer::BitcoinEventObserverConfigBuilder;
-///
-/// fn get_config() -> Result<EventObserverConfig, String> {
-///     BitcoinEventObserverConfigBuilder::new()
-///         .rpc_password("my_password")
-///         .network("mainnet")
-///         .finish()
-/// }
-/// ```
-pub struct BitcoinEventObserverConfigBuilder {
-    pub bitcoind_rpc_username: Option<String>,
-    pub bitcoind_rpc_password: Option<String>,
-    pub bitcoind_rpc_url: Option<String>,
-    pub bitcoin_network: Option<String>,
-    pub bitcoind_zmq_url: Option<String>,
-    pub prometheus_monitoring_port: Option<u16>,
-}
-impl Default for BitcoinEventObserverConfigBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl BitcoinEventObserverConfigBuilder {
-    pub fn new() -> Self {
-        BitcoinEventObserverConfigBuilder {
-            bitcoind_rpc_username: None,
-            bitcoind_rpc_password: None,
-            bitcoind_rpc_url: None,
-            bitcoin_network: None,
-            bitcoind_zmq_url: None,
-            prometheus_monitoring_port: None,
-        }
-    }
-
-    /// Sets the bitcoind node's RPC username.
-    pub fn rpc_username(&mut self, username: &str) -> &mut Self {
-        self.bitcoind_rpc_username = Some(username.to_string());
-        self
-    }
-
-    /// Sets the bitcoind node's RPC password.
-    pub fn rpc_password(&mut self, password: &str) -> &mut Self {
-        self.bitcoind_rpc_password = Some(password.to_string());
-        self
-    }
-
-    /// Sets the bitcoind node's RPC url.
-    pub fn rpc_url(&mut self, url: &str) -> &mut Self {
-        self.bitcoind_rpc_url = Some(url.to_string());
-        self
-    }
-
-    /// Sets the bitcoind node's ZMQ url, used by the observer to receive new block events from bitcoind.
-    pub fn zmq_url(&mut self, url: &str) -> &mut Self {
-        self.bitcoind_zmq_url = Some(url.to_string());
-        self
-    }
-
-    /// Sets the Bitcoin network. Must be a valid bitcoin network string according to [BitcoinNetwork::from_str].
-    pub fn network(&mut self, network: &str) -> &mut Self {
-        self.bitcoin_network = Some(network.to_string());
-        self
-    }
-
-    /// Sets the Prometheus monitoring port.
-    pub fn prometheus_monitoring_port(&mut self, port: u16) -> &mut Self {
-        self.prometheus_monitoring_port = Some(port);
-        self
-    }
-
-    /// Attempts to convert a [BitcoinEventObserverConfigBuilder] instance into an [EventObserverConfig], filling in
-    /// defaults as necessary according to [EventObserverConfig::default].
-    ///
-    /// This function will return an error if the `bitcoin_network` string is set and is not a valid [BitcoinNetwork].
-    pub fn finish(&self) -> Result<EventObserverConfig, String> {
-        let bitcoin_network = if let Some(network) = self.bitcoin_network.as_ref() {
-            BitcoinNetwork::from_str(network)?
-        } else {
-            BitcoinNetwork::Regtest
-        };
-        Ok(EventObserverConfig {
-            registered_chainhooks: ChainhookStore::new(),
-            predicates_config: PredicatesConfig {
-                payload_http_request_timeout_ms: None,
-            },
-            bitcoin_rpc_proxy_enabled: false,
-            bitcoind_rpc_username: self
-                .bitcoind_rpc_username
-                .clone()
-                .unwrap_or_else(|| "devnet".into()),
-            bitcoind_rpc_password: self
-                .bitcoind_rpc_password
-                .clone()
-                .unwrap_or_else(|| "devnet".into()),
-            bitcoind_rpc_url: self
-                .bitcoind_rpc_url
-                .clone()
-                .unwrap_or_else(|| "http://localhost:18443".into()),
-            bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
-                self.bitcoind_zmq_url
-                    .clone()
-                    .unwrap_or_else(|| "tcp://0.0.0.0:18543".into()),
-            ),
-            bitcoin_network,
-            prometheus_monitoring_port: self.prometheus_monitoring_port,
-        })
-    }
-}
-
 impl EventObserverConfig {
     pub fn default() -> Self {
         EventObserverConfig {
-            registered_chainhooks: ChainhookStore::new(),
-            predicates_config: PredicatesConfig {
-                payload_http_request_timeout_ms: None,
-            },
-            bitcoin_rpc_proxy_enabled: false,
             bitcoind_rpc_username: "devnet".into(),
             bitcoind_rpc_password: "devnet".into(),
             bitcoind_rpc_url: "http://localhost:18443".into(),
-            bitcoin_block_signaling: BitcoinBlockSignaling::Stacks(StacksNodeConfig::new(
-                DEFAULT_STACKS_NODE_RPC.to_string(),
-                DEFAULT_INGESTION_PORT,
-            )),
+            bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
+                "tcp://localhost:18543".to_string(),
+            ),
             bitcoin_network: BitcoinNetwork::Regtest,
-            prometheus_monitoring_port: None,
         }
-    }
-
-    /// Adds a [ChainhookInstance] to config's the registered chainhook store, returning the updated config.
-    pub fn register_chainhook_instance(
-        &mut self,
-        spec: ChainhookInstance,
-    ) -> Result<&mut Self, String> {
-        let mut chainhook_config = ChainhookStore::new();
-        chainhook_config.register_instance(spec)?;
-        self.registered_chainhooks = chainhook_config;
-
-        Ok(self)
-    }
-
-    /// Adds a [BitcoinChainhookInstance] to the config's registered chainhook store, returning the updated config.
-    pub fn register_bitcoin_chainhook_instance(
-        &mut self,
-        spec: BitcoinChainhookInstance,
-    ) -> Result<&mut Self, String> {
-        self.register_chainhook_instance(ChainhookInstance::Bitcoin(spec))
     }
 
     pub fn get_bitcoin_config(&self) -> BitcoinConfig {
@@ -387,11 +159,6 @@ impl EventObserverConfig {
             };
 
         let config = EventObserverConfig {
-            bitcoin_rpc_proxy_enabled: false,
-            registered_chainhooks: ChainhookStore::new(),
-            predicates_config: PredicatesConfig {
-                payload_http_request_timeout_ms: None,
-            },
             bitcoind_rpc_username: overrides
                 .and_then(|c| c.bitcoind_rpc_username.clone())
                 .unwrap_or_else(|| "devnet".to_string()),
@@ -405,17 +172,9 @@ impl EventObserverConfig {
                 .and_then(|c| c.bitcoind_zmq_url.as_ref())
                 .map(|url| BitcoinBlockSignaling::ZeroMQ(url.clone()))
                 .unwrap_or_else(|| {
-                    BitcoinBlockSignaling::Stacks(StacksNodeConfig::new(
-                        overrides
-                            .and_then(|c| c.stacks_node_rpc_url.clone())
-                            .unwrap_or_else(|| DEFAULT_STACKS_NODE_RPC.to_string()),
-                        overrides
-                            .and_then(|c| c.chainhook_stacks_block_ingestion_port)
-                            .unwrap_or(DEFAULT_INGESTION_PORT),
-                    ))
+                    BitcoinBlockSignaling::ZeroMQ("tcp://localhost:18543".to_string())
                 }),
             bitcoin_network,
-            prometheus_monitoring_port: overrides.and_then(|c| c.prometheus_monitoring_port),
         };
         Ok(config)
     }
@@ -426,11 +185,6 @@ pub enum ObserverCommand {
     ProcessBitcoinBlock(BitcoinBlockFullBreakdown),
     CacheBitcoinBlock(BitcoinBlockData),
     PropagateBitcoinChainEvent(BlockchainEvent),
-    RegisterPredicate(ChainhookSpecificationNetworkMap),
-    EnablePredicate(ChainhookInstance),
-    DeregisterBitcoinPredicate(String),
-    ExpireBitcoinPredicate(HookExpirationData),
-    NotifyBitcoinTransactionProxied,
     Terminate,
 }
 
@@ -447,95 +201,11 @@ pub struct MempoolAdmissionData {
 }
 
 #[derive(Clone, Debug)]
-pub struct PredicateEvaluationReport {
-    pub predicates_evaluated: BTreeMap<String, BTreeSet<BlockIdentifier>>,
-    pub predicates_triggered: BTreeMap<String, BTreeSet<BlockIdentifier>>,
-    pub predicates_expired: BTreeMap<String, BTreeSet<BlockIdentifier>>,
-}
-
-impl Default for PredicateEvaluationReport {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl PredicateEvaluationReport {
-    pub fn new() -> PredicateEvaluationReport {
-        PredicateEvaluationReport {
-            predicates_evaluated: BTreeMap::new(),
-            predicates_triggered: BTreeMap::new(),
-            predicates_expired: BTreeMap::new(),
-        }
-    }
-
-    pub fn track_evaluation(&mut self, uuid: &str, block_identifier: &BlockIdentifier) {
-        self.predicates_evaluated
-            .entry(uuid.to_string())
-            .and_modify(|e| {
-                e.insert(block_identifier.clone());
-            })
-            .or_insert_with(|| {
-                let mut set = BTreeSet::new();
-                set.insert(block_identifier.clone());
-                set
-            });
-    }
-
-    pub fn track_trigger(&mut self, uuid: &str, blocks: &Vec<&BlockIdentifier>) {
-        for block_id in blocks.iter() {
-            self.predicates_triggered
-                .entry(uuid.to_string())
-                .and_modify(|e| {
-                    e.insert((*block_id).clone());
-                })
-                .or_insert_with(|| {
-                    let mut set = BTreeSet::new();
-                    set.insert((*block_id).clone());
-                    set
-                });
-        }
-    }
-
-    pub fn track_expiration(&mut self, uuid: &str, block_identifier: &BlockIdentifier) {
-        self.predicates_expired
-            .entry(uuid.to_string())
-            .and_modify(|e| {
-                e.insert(block_identifier.clone());
-            })
-            .or_insert_with(|| {
-                let mut set = BTreeSet::new();
-                set.insert(block_identifier.clone());
-                set
-            });
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct PredicateInterruptedData {
-    pub predicate_key: String,
-    pub error: String,
-}
-
-#[derive(Clone, Debug)]
 pub enum ObserverEvent {
     Error(String),
     Fatal(String),
     Info(String),
-    BitcoinChainEvent((BitcoinChainEvent, PredicateEvaluationReport)),
-    NotifyBitcoinTransactionProxied,
-    PredicateRegistered(ChainhookInstance),
-    PredicateDeregistered(PredicateDeregisteredEvent),
-    PredicateEnabled(ChainhookInstance),
-    BitcoinPredicateTriggered(BitcoinChainhookOccurrencePayload),
-    PredicatesTriggered(usize),
-    PredicateInterrupted(PredicateInterruptedData),
     Terminate,
-}
-
-#[derive(Clone, Debug)]
-pub struct PredicateDeregisteredEvent {
-    pub predicate_uuid: String,
-    pub chain: Chain,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -767,109 +437,23 @@ pub async fn start_bitcoin_event_observer(
     observer_sidecar: Option<ObserverSidecar>,
     ctx: Context,
 ) -> Result<(), Box<dyn Error>> {
-    let chainhook_store = config.registered_chainhooks.clone();
-    {
-        let ctx_moved = ctx.clone();
-        let config_moved = config.clone();
-        let _ = hiro_system_kit::thread_named("ZMQ handler").spawn(move || {
-            let future =
-                zmq::start_zeromq_runloop(&config_moved, _observer_commands_tx, &ctx_moved);
-            hiro_system_kit::nestable_block_on(future);
-        });
-    }
-
-    let prometheus_monitoring = PrometheusMonitoring::new();
-    prometheus_monitoring.initialize(
-        chainhook_store.bitcoin_chainhooks.len() as u64,
-        None,
-    );
-
-    if let Some(port) = config.prometheus_monitoring_port {
-        let registry_moved = prometheus_monitoring.registry.clone();
-        let ctx_cloned = ctx.clone();
-        let _ = std::thread::spawn(move || {
-            hiro_system_kit::nestable_block_on(start_serving_prometheus_metrics(
-                port,
-                registry_moved,
-                ctx_cloned,
-            ));
-        });
-    }
+    let ctx_moved = ctx.clone();
+    let config_moved = config.clone();
+    let _ = hiro_system_kit::thread_named("ZMQ handler").spawn(move || {
+        let future = zmq::start_zeromq_runloop(&config_moved, _observer_commands_tx, &ctx_moved);
+        hiro_system_kit::nestable_block_on(future);
+    });
 
     // This loop is used for handling background jobs, emitted by HTTP calls.
     start_observer_commands_handler(
         config,
-        chainhook_store,
         observer_commands_rx,
         observer_events_tx,
         None,
-        prometheus_monitoring,
         observer_sidecar,
         ctx,
     )
     .await
-}
-
-pub fn get_bitcoin_proof(
-    bitcoin_client_rpc: &Client,
-    transaction_identifier: &TransactionIdentifier,
-    block_identifier: &BlockIdentifier,
-) -> Result<String, String> {
-    let txid =
-        Txid::from_str(transaction_identifier.get_hash_bytes_str()).expect("unable to build txid");
-    let block_hash =
-        BlockHash::from_str(&block_identifier.hash[2..]).expect("unable to build block_hash");
-
-    let res = bitcoin_client_rpc.get_tx_out_proof(&[txid], Some(&block_hash));
-    match res {
-        Ok(proof) => Ok(format!("0x{}", hex::encode(&proof))),
-        Err(e) => Err(format!(
-            "failed collecting proof for transaction {}: {}",
-            transaction_identifier.hash, e
-        )),
-    }
-}
-
-pub fn gather_proofs<'a>(
-    trigger: &BitcoinTriggerChainhook<'a>,
-    proofs: &mut HashMap<&'a TransactionIdentifier, String>,
-    config: &EventObserverConfig,
-    ctx: &Context,
-) {
-    let bitcoin_client_rpc = Client::new(
-        &config.bitcoind_rpc_url,
-        Auth::UserPass(
-            config.bitcoind_rpc_username.to_string(),
-            config.bitcoind_rpc_password.to_string(),
-        ),
-    )
-    .expect("unable to build http client");
-
-    for (transactions, block) in trigger.apply.iter() {
-        for transaction in transactions.iter() {
-            if !proofs.contains_key(&transaction.transaction_identifier) {
-                ctx.try_log(|logger| {
-                    slog::debug!(
-                        logger,
-                        "Collecting proof for transaction {}",
-                        transaction.transaction_identifier.hash
-                    )
-                });
-                match get_bitcoin_proof(
-                    &bitcoin_client_rpc,
-                    &transaction.transaction_identifier,
-                    &block.block_identifier,
-                ) {
-                    Ok(proof) => {
-                        proofs.insert(&transaction.transaction_identifier, proof);
-                    }
-                    Err(e) => {
-                        ctx.try_log(|logger| slog::warn!(logger, "{e}"));
-                    }
-                }
-            }
-        }
-    }
 }
 
 pub enum HandleBlock {
@@ -879,16 +463,12 @@ pub enum HandleBlock {
 
 pub async fn start_observer_commands_handler(
     config: EventObserverConfig,
-    mut chainhook_store: ChainhookStore,
     observer_commands_rx: Receiver<ObserverCommand>,
     observer_events_tx: Option<crossbeam_channel::Sender<ObserverEvent>>,
     ingestion_shutdown: Option<Shutdown>,
-    prometheus_monitoring: PrometheusMonitoring,
     observer_sidecar: Option<ObserverSidecar>,
     ctx: Context,
 ) -> Result<(), Box<dyn Error>> {
-    let mut chainhooks_occurrences_tracker: HashMap<String, u64> = HashMap::new();
-    let networks = &config.bitcoin_network;
     let mut bitcoin_block_store: HashMap<BlockIdentifier, BitcoinBlockDataCached> = HashMap::new();
     let http_client = build_http_client();
     let store_update_required = observer_sidecar
@@ -989,7 +569,7 @@ pub async fn start_observer_commands_handler(
                 let mut confirmed_blocks = vec![];
 
                 // Update Chain event before propagation
-                let (chain_event, new_tip) = match blockchain_event {
+                let (chain_event, _) = match blockchain_event {
                     BlockchainEvent::BlockchainUpdatedWithHeaders(data) => {
                         let mut blocks_to_mutate = vec![];
                         let mut new_blocks = vec![];
@@ -1134,17 +714,6 @@ pub async fn start_observer_commands_handler(
                             }
                         }
 
-                        if let Some(highest_tip_block) = blocks_to_apply
-                            .iter()
-                            .max_by_key(|b| b.block_identifier.index)
-                        {
-                            prometheus_monitoring.btc_metrics_set_reorg(
-                                highest_tip_block.timestamp.into(),
-                                blocks_to_apply.len() as u64,
-                                blocks_to_rollback.len() as u64,
-                            );
-                        }
-
                         (
                             BitcoinChainEvent::ChainUpdatedWithReorg(
                                 BitcoinChainUpdatedWithReorgData {
@@ -1161,258 +730,6 @@ pub async fn start_observer_commands_handler(
                 if let Some(ref sidecar) = observer_sidecar {
                     sidecar.notify_chain_event(&chain_event, &ctx)
                 }
-                // process hooks
-                let mut hooks_ids_to_deregister = vec![];
-                let mut requests = vec![];
-                let mut report = PredicateEvaluationReport::new();
-
-                let bitcoin_chainhooks = chainhook_store
-                    .bitcoin_chainhooks
-                    .iter()
-                    .filter(|p| p.enabled)
-                    .filter(|p| p.expired_at.is_none())
-                    .collect::<Vec<_>>();
-                ctx.try_log(|logger| {
-                    slog::info!(
-                        logger,
-                        "Evaluating {} bitcoin chainhooks registered",
-                        bitcoin_chainhooks.len()
-                    )
-                });
-
-                let (predicates_triggered, predicates_evaluated, predicates_expired) =
-                    evaluate_bitcoin_chainhooks_on_chain_event(
-                        &chain_event,
-                        &bitcoin_chainhooks,
-                        &ctx,
-                    );
-
-                for (uuid, block_identifier) in predicates_evaluated.into_iter() {
-                    report.track_evaluation(uuid, block_identifier);
-                }
-                for (uuid, block_identifier) in predicates_expired.into_iter() {
-                    report.track_expiration(uuid, block_identifier);
-                }
-                for entry in predicates_triggered.iter() {
-                    let blocks_ids = entry
-                        .apply
-                        .iter()
-                        .map(|e| &e.1.block_identifier)
-                        .collect::<Vec<&BlockIdentifier>>();
-                    report.track_trigger(&entry.chainhook.uuid, &blocks_ids);
-                }
-
-                ctx.try_log(|logger| {
-                    slog::info!(
-                        logger,
-                        "{} bitcoin chainhooks positive evaluations",
-                        predicates_triggered.len()
-                    )
-                });
-
-                let mut chainhooks_to_trigger = vec![];
-
-                for trigger in predicates_triggered.into_iter() {
-                    let mut total_occurrences: u64 = *chainhooks_occurrences_tracker
-                        .get(&trigger.chainhook.uuid)
-                        .unwrap_or(&0);
-                    // todo: this currently is only additive, and an occurrence means we match a chain event,
-                    // rather than the number of blocks. Should we instead add to the total occurrences for
-                    // every apply block, and subtract for every rollback? If we did this, we could set the
-                    // status to `Expired` when we go above `expire_after_occurrence` occurrences, rather than
-                    // deregistering
-                    total_occurrences += 1;
-
-                    let limit = trigger.chainhook.expire_after_occurrence.unwrap_or(0);
-                    if limit == 0 || total_occurrences <= limit {
-                        chainhooks_occurrences_tracker
-                            .insert(trigger.chainhook.uuid.clone(), total_occurrences);
-                        chainhooks_to_trigger.push(trigger);
-                    } else {
-                        hooks_ids_to_deregister.push(trigger.chainhook.uuid.clone());
-                    }
-                }
-
-                let mut proofs = HashMap::new();
-                for trigger in chainhooks_to_trigger.iter() {
-                    if trigger.chainhook.include_proof {
-                        gather_proofs(trigger, &mut proofs, &config, &ctx);
-                    }
-                }
-
-                ctx.try_log(|logger| {
-                    slog::info!(
-                        logger,
-                        "{} bitcoin chainhooks will be triggered",
-                        chainhooks_to_trigger.len()
-                    )
-                });
-
-                if let Some(ref tx) = observer_events_tx {
-                    let _ = tx.send(ObserverEvent::PredicatesTriggered(
-                        chainhooks_to_trigger.len(),
-                    ));
-                }
-                for chainhook_to_trigger in chainhooks_to_trigger.into_iter() {
-                    let predicate_uuid = &chainhook_to_trigger.chainhook.uuid;
-                    match handle_bitcoin_hook_action(chainhook_to_trigger, &proofs, &config) {
-                        Err(e) => {
-                            // todo: we may want to set predicates that reach this branch as interrupted,
-                            // but for now we will error to see if this problem occurs.
-                            ctx.try_log(|logger| {
-                                slog::error!(
-                                    logger,
-                                    "unable to handle action for predicate {}: {}",
-                                    predicate_uuid,
-                                    e
-                                )
-                            });
-                        }
-                        Ok(BitcoinChainhookOccurrence::Http(request, data)) => {
-                            requests.push((request, data));
-                        }
-                        Ok(BitcoinChainhookOccurrence::File(_path, _bytes)) => {
-                            ctx.try_log(|logger| {
-                                slog::warn!(logger, "Writing to disk not supported in server mode")
-                            })
-                        }
-                        Ok(BitcoinChainhookOccurrence::Data(payload)) => {
-                            if let Some(ref tx) = observer_events_tx {
-                                let _ = tx.send(ObserverEvent::BitcoinPredicateTriggered(payload));
-                            }
-                        }
-                    }
-                }
-                ctx.try_log(|logger| {
-                    slog::info!(
-                        logger,
-                        "{} bitcoin chainhooks to deregister",
-                        hooks_ids_to_deregister.len()
-                    )
-                });
-
-                for hook_uuid in hooks_ids_to_deregister.iter() {
-                    if chainhook_store
-                        .deregister_bitcoin_hook(hook_uuid.clone())
-                        .is_some()
-                    {
-                        prometheus_monitoring.btc_metrics_deregister_predicate();
-                    }
-                    if let Some(ref tx) = observer_events_tx {
-                        let _ = tx.send(ObserverEvent::PredicateDeregistered(
-                            PredicateDeregisteredEvent {
-                                predicate_uuid: hook_uuid.clone(),
-                                chain: Chain::Bitcoin,
-                            },
-                        ));
-                    }
-                }
-
-                for (request, data) in requests.into_iter() {
-                    match send_request(request, 3, 1, &ctx).await {
-                        Ok(_) => {
-                            if let Some(ref tx) = observer_events_tx {
-                                let _ = tx.send(ObserverEvent::BitcoinPredicateTriggered(data));
-                            }
-                        }
-                        Err(e) => {
-                            chainhook_store.deregister_bitcoin_hook(data.chainhook.uuid.clone());
-                            if let Some(ref tx) = observer_events_tx {
-                                let _ = tx.send(ObserverEvent::PredicateInterrupted(PredicateInterruptedData {
-                                    predicate_key: ChainhookInstance::bitcoin_key(&data.chainhook.uuid),
-                                    error: format!("Unable to evaluate predicate on Bitcoin chainstate: {}", e)
-                                }));
-                            }
-                        }
-                    }
-                }
-
-                prometheus_monitoring.btc_metrics_block_evaluated(new_tip);
-
-                if let Some(ref tx) = observer_events_tx {
-                    let _ = tx.send(ObserverEvent::BitcoinChainEvent((chain_event, report)));
-                }
-            }
-            ObserverCommand::NotifyBitcoinTransactionProxied => {
-                ctx.try_log(|logger| {
-                    slog::debug!(logger, "Handling NotifyBitcoinTransactionProxied command")
-                });
-                if let Some(ref tx) = observer_events_tx {
-                    let _ = tx.send(ObserverEvent::NotifyBitcoinTransactionProxied);
-                }
-            }
-            ObserverCommand::RegisterPredicate(spec) => {
-                ctx.try_log(|logger| slog::info!(logger, "Handling RegisterPredicate command"));
-
-                let mut spec =
-                    match chainhook_store.register_instance_from_network_map(networks, spec) {
-                        Ok(spec) => spec,
-                        Err(e) => {
-                            ctx.try_log(|logger| {
-                                slog::warn!(
-                                    logger,
-                                    "Unable to register new chainhook spec: {}",
-                                    e.to_string()
-                                )
-                            });
-                            continue;
-                        }
-                    };
-
-                match spec {
-                    ChainhookInstance::Bitcoin(_) => {
-                        prometheus_monitoring.btc_metrics_register_predicate()
-                    }
-                };
-
-                ctx.try_log(
-                    |logger| slog::debug!(logger, "Registering chainhook {}", spec.uuid(),),
-                );
-                if let Some(ref tx) = observer_events_tx {
-                    let _ = tx.send(ObserverEvent::PredicateRegistered(spec.clone()));
-                } else {
-                    ctx.try_log(|logger| {
-                        slog::debug!(logger, "Enabling Predicate {}", spec.uuid())
-                    });
-                    chainhook_store.enable_instance(&mut spec);
-                }
-            }
-            ObserverCommand::EnablePredicate(mut spec) => {
-                ctx.try_log(|logger| slog::info!(logger, "Enabling Predicate {}", spec.uuid()));
-                chainhook_store.enable_instance(&mut spec);
-                if let Some(ref tx) = observer_events_tx {
-                    let _ = tx.send(ObserverEvent::PredicateEnabled(spec));
-                }
-            }
-            ObserverCommand::DeregisterBitcoinPredicate(hook_uuid) => {
-                ctx.try_log(|logger| {
-                    slog::info!(logger, "Handling DeregisterBitcoinPredicate command")
-                });
-                let hook = chainhook_store.deregister_bitcoin_hook(hook_uuid.clone());
-
-                if hook.is_some() {
-                    // on startup, only the predicates in the `chainhook_store` are added to the monitoring count,
-                    // so only those that we find in the store should be removed
-                    prometheus_monitoring.btc_metrics_deregister_predicate();
-                };
-                // even if the predicate wasn't in the `chainhook_store`, propogate this event to delete from redis
-                if let Some(tx) = &observer_events_tx {
-                    let _ = tx.send(ObserverEvent::PredicateDeregistered(
-                        PredicateDeregisteredEvent {
-                            predicate_uuid: hook_uuid.clone(),
-                            chain: Chain::Bitcoin,
-                        },
-                    ));
-                };
-            }
-            ObserverCommand::ExpireBitcoinPredicate(HookExpirationData {
-                hook_uuid,
-                block_height,
-            }) => {
-                ctx.try_log(|logger| {
-                    slog::info!(logger, "Handling ExpireBitcoinPredicate command")
-                });
-                chainhook_store.expire_bitcoin_hook(hook_uuid, block_height);
             }
         }
     }
@@ -1434,5 +751,3 @@ fn terminate(
         let _ = tx.send(ObserverEvent::Terminate);
     }
 }
-#[cfg(test)]
-pub mod tests;

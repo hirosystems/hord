@@ -37,9 +37,7 @@ pub async fn reset_dbs(config: &Config, ctx: &Context) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn pg_reset_db(
-    pg_client: &mut chainhook_postgres::tokio_postgres::Client,
-) -> Result<(), String> {
+pub async fn pg_reset_db(pg_client: &mut tokio_postgres::Client) -> Result<(), String> {
     pg_client
         .batch_execute(
             "
@@ -83,7 +81,9 @@ pub fn pg_test_connection_pool() -> deadpool_postgres::Pool {
 
 #[cfg(test)]
 pub async fn pg_test_connection() -> tokio_postgres::Client {
-    chainhook_postgres::pg_connect(&pg_test_config()).await.unwrap()
+    chainhook_postgres::pg_connect(&pg_test_config())
+        .await
+        .unwrap()
 }
 
 #[cfg(test)]

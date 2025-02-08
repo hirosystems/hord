@@ -1,9 +1,6 @@
 pub use chainhook_postgres::PgConnectionConfig;
-use chainhook_sdk::chainhooks::types::ChainhookStore;
-use chainhook_sdk::observer::{EventObserverConfig, PredicatesConfig};
-use chainhook_sdk::types::{
-    BitcoinBlockSignaling, BitcoinNetwork, StacksNetwork, StacksNodeConfig,
-};
+use chainhook_sdk::observer::EventObserverConfig;
+use chainhook_sdk::types::{BitcoinBlockSignaling, BitcoinNetwork};
 use std::path::PathBuf;
 
 const DEFAULT_MAINNET_ORDINALS_SQLITE_ARCHIVE: &str =
@@ -102,15 +99,11 @@ impl ResourcesConfig {
 impl Config {
     pub fn get_event_observer_config(&self) -> EventObserverConfig {
         EventObserverConfig {
-            bitcoin_rpc_proxy_enabled: true,
             bitcoind_rpc_username: self.network.bitcoind_rpc_username.clone(),
             bitcoind_rpc_password: self.network.bitcoind_rpc_password.clone(),
             bitcoind_rpc_url: self.network.bitcoind_rpc_url.clone(),
             bitcoin_block_signaling: self.network.bitcoin_block_signaling.clone(),
             bitcoin_network: self.network.bitcoin_network.clone(),
-            prometheus_monitoring_port: None,
-            registered_chainhooks: ChainhookStore { bitcoin_chainhooks: vec![] },
-            predicates_config: PredicatesConfig { payload_http_request_timeout_ms: None },
         }
     }
 
@@ -163,8 +156,8 @@ impl Config {
                 bitcoind_rpc_url: "http://0.0.0.0:18443".into(),
                 bitcoind_rpc_username: "devnet".into(),
                 bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::Stacks(
-                    StacksNodeConfig::default_localhost(DEFAULT_INGESTION_PORT),
+                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
+                    "http://0.0.0.0:18543".into(),
                 ),
                 bitcoin_network: BitcoinNetwork::Regtest,
                 prometheus_monitoring_port: None,
@@ -207,8 +200,8 @@ impl Config {
                 bitcoind_rpc_url: "http://0.0.0.0:18332".into(),
                 bitcoind_rpc_username: "devnet".into(),
                 bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::Stacks(
-                    StacksNodeConfig::default_localhost(DEFAULT_INGESTION_PORT),
+                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
+                    "http://0.0.0.0:18543".into(),
                 ),
                 bitcoin_network: BitcoinNetwork::Testnet,
                 prometheus_monitoring_port: Some(9153),
@@ -254,8 +247,8 @@ impl Config {
                 bitcoind_rpc_url: "http://0.0.0.0:8332".into(),
                 bitcoind_rpc_username: "devnet".into(),
                 bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::Stacks(
-                    StacksNodeConfig::default_localhost(DEFAULT_INGESTION_PORT),
+                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
+                    "http://0.0.0.0:18543".into(),
                 ),
                 bitcoin_network: BitcoinNetwork::Mainnet,
                 prometheus_monitoring_port: Some(9153),

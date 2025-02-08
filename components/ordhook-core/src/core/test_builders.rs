@@ -155,7 +155,6 @@ impl TestTransactionBuilder {
                 inputs: self.inputs,
                 outputs: self.outputs,
                 ordinal_operations: self.ordinal_operations,
-                stacks_operations: vec![],
                 brc20_operation: self.brc20_operation,
                 proof: None,
                 fee: 0,

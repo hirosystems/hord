@@ -135,7 +135,6 @@ impl Service {
             observer_command_rx,
             Some(observer_event_tx),
             Some(zmq_observer_sidecar),
-            None,
             inner_ctx,
         );
 
