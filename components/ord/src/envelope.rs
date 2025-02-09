@@ -1,11 +1,16 @@
 use {
-    super::{inscription::Inscription, tag::Tag}, chainhook_sdk::bitcoin::{blockdata::{
-        opcodes,
-        script::{
-            Instruction::{self, Op, PushBytes},
-            Instructions,
+    super::{inscription::Inscription, tag::Tag},
+    bitcoin::{
+        blockdata::{
+            opcodes,
+            script::{
+                Instruction::{self, Op, PushBytes},
+                Instructions,
+            },
         },
-    }, script, Script, Transaction}, std::{collections::BTreeMap, iter::Peekable}
+        script, Script, Transaction,
+    },
+    std::{collections::BTreeMap, iter::Peekable},
 };
 
 pub(crate) const PROTOCOL_ID: [u8; 3] = *b"ord";

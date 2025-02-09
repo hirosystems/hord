@@ -6,10 +6,8 @@ use std::{
 };
 
 use chainhook_postgres::{pg_begin, pg_pool_client};
-use chainhook_sdk::{
-    types::{BitcoinBlockData, TransactionIdentifier},
-    utils::Context,
-};
+use chainhook_sdk::utils::Context;
+use chainhook_types::{BitcoinBlockData, TransactionIdentifier};
 use crossbeam_channel::{Sender, TryRecvError};
 
 use dashmap::DashMap;

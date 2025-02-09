@@ -237,7 +237,7 @@ pub fn delete_blocks_in_block_range(
 
 #[cfg(test)]
 pub fn insert_standardized_block(
-    block: &chainhook_sdk::types::BitcoinBlockData,
+    block: &chainhook_types::BitcoinBlockData,
     blocks_db_rw: &DB,
     ctx: &Context,
 ) {

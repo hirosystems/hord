@@ -1,5 +1,5 @@
-use chainhook_sdk::types::{BlockIdentifier, OrdinalInscriptionNumber, TransactionIdentifier};
 use chainhook_sdk::utils::Context;
+use chainhook_types::{BlockIdentifier, OrdinalInscriptionNumber, TransactionIdentifier};
 use dashmap::DashMap;
 use fxhash::FxHasher;
 use std::hash::BuildHasherDefault;
@@ -313,10 +313,8 @@ pub fn compute_satoshi_number(
 mod test {
     use std::{hash::BuildHasherDefault, sync::Arc};
 
-    use chainhook_sdk::{
-        types::{bitcoin::TxOut, BlockIdentifier, TransactionIdentifier},
-        utils::Context,
-    };
+    use chainhook_sdk::utils::Context;
+    use chainhook_types::{bitcoin::TxOut, BlockIdentifier, TransactionIdentifier};
     use dashmap::DashMap;
     use fxhash::FxHasher;
 

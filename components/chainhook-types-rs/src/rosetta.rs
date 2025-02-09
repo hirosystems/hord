@@ -1,4 +1,4 @@
-use super::bitcoin::{TxIn, TxOut};
+use crate::bitcoin::{TxIn, TxOut};
 use crate::ordinals::OrdinalOperation;
 use crate::Brc20Operation;
 use schemars::JsonSchema;

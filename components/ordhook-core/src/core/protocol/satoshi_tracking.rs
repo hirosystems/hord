@@ -1,12 +1,10 @@
 use std::collections::HashSet;
 
-use chainhook_sdk::{
-    bitcoincore_rpc_json::bitcoin::{Address, Network, ScriptBuf},
-    types::{
-        BitcoinBlockData, BitcoinTransactionData, BlockIdentifier, OrdinalInscriptionTransferData,
-        OrdinalInscriptionTransferDestination, OrdinalOperation,
-    },
-    utils::Context,
+use bitcoin::{Address, Network, ScriptBuf};
+use chainhook_sdk::utils::Context;
+use chainhook_types::{
+    BitcoinBlockData, BitcoinTransactionData, BlockIdentifier, OrdinalInscriptionTransferData,
+    OrdinalInscriptionTransferDestination, OrdinalOperation,
 };
 use deadpool_postgres::Transaction;
 
@@ -262,9 +260,9 @@ pub async fn augment_transaction_with_ordinal_transfers(
 
 #[cfg(test)]
 mod test {
-    use chainhook_sdk::{
-        bitcoin::Network, types::OrdinalInscriptionTransferDestination, utils::Context,
-    };
+    use bitcoin::Network;
+    use chainhook_sdk::utils::Context;
+    use chainhook_types::OrdinalInscriptionTransferDestination;
 
     use crate::core::test_builders::{TestTransactionBuilder, TestTxInBuilder, TestTxOutBuilder};
 

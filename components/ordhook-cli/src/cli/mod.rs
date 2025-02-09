@@ -1,9 +1,8 @@
 use crate::config::file::ConfigFile;
 use crate::config::generator::generate_config;
+use chainhook_sdk::utils::{BlockHeights, Context};
 use clap::{Parser, Subcommand};
 use hiro_system_kit;
-use ordhook::chainhook_sdk::utils::BlockHeights;
-use ordhook::chainhook_sdk::utils::Context;
 use ordhook::core::first_inscription_height;
 use ordhook::core::pipeline::bitcoind_download_blocks;
 use ordhook::core::pipeline::processors::block_archiving::start_block_archiving_processor;
@@ -375,7 +374,7 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
                         info!(ctx.expect_logger(), "--------------------");
                         info!(ctx.expect_logger(), "Block: {i}");
                         for tx in block.iter_tx() {
-                            info!(ctx.expect_logger(), "Tx: {}", ordhook::hex::encode(tx.txid));
+                            info!(ctx.expect_logger(), "Tx: {}", hex::encode(tx.txid));
                         }
                     }
                 }

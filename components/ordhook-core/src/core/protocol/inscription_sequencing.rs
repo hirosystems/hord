@@ -4,14 +4,12 @@ use std::{
     sync::Arc,
 };
 
-use chainhook_sdk::{
-    bitcoincore_rpc_json::bitcoin::Network,
-    types::{
-        BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
-        OrdinalInscriptionCurseType, OrdinalInscriptionTransferDestination, OrdinalOperation,
-        TransactionIdentifier,
-    },
-    utils::Context,
+use bitcoin::Network;
+use chainhook_sdk::utils::Context;
+use chainhook_types::{
+    BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
+    OrdinalInscriptionCurseType, OrdinalInscriptionTransferDestination, OrdinalOperation,
+    TransactionIdentifier,
 };
 use crossbeam_channel::unbounded;
 use dashmap::DashMap;

@@ -1,6 +1,4 @@
-use ordhook::chainhook_sdk::types::{
-    BitcoinBlockSignaling, BitcoinNetwork,
-};
+use chainhook_types::{BitcoinBlockSignaling, BitcoinNetwork};
 use ordhook::config::{
     Config, IndexerConfig, LogConfig, MetaProtocolsConfig, ResourcesConfig, SnapshotConfig,
     SnapshotConfigDownloadUrls, StorageConfig, DEFAULT_BITCOIND_RPC_THREADS,

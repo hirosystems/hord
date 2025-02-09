@@ -2,7 +2,7 @@ use chainhook_postgres::{
     types::{PgBigIntU32, PgNumericU64},
     FromPgRow,
 };
-use chainhook_sdk::types::{
+use chainhook_types::{
     BlockIdentifier, OrdinalInscriptionCurseType, OrdinalInscriptionRevealData,
     TransactionIdentifier,
 };

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, mem};
 
-use chainhook_sdk::bitcoin::{constants::MAX_SCRIPT_ELEMENT_SIZE, script};
+use bitcoin::{constants::MAX_SCRIPT_ELEMENT_SIZE, script};
 
 #[derive(Copy, Clone)]
 #[repr(u8)]

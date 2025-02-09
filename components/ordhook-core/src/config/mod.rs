@@ -1,6 +1,6 @@
 pub use chainhook_postgres::PgConnectionConfig;
 use chainhook_sdk::observer::EventObserverConfig;
-use chainhook_sdk::types::{BitcoinBlockSignaling, BitcoinNetwork};
+use chainhook_types::{BitcoinBlockSignaling, BitcoinNetwork};
 use std::path::PathBuf;
 
 const DEFAULT_MAINNET_ORDINALS_SQLITE_ARCHIVE: &str =

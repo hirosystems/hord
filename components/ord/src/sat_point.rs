@@ -1,4 +1,4 @@
-use chainhook_sdk::bitcoin::OutPoint;
+use bitcoin::OutPoint;
 
 /// A satpoint identifies the location of a sat in an output.
 ///

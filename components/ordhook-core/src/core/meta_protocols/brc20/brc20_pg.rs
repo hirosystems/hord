@@ -4,7 +4,7 @@ use chainhook_postgres::{
     types::{PgNumericU128, PgNumericU64},
     utils, FromPgRow, BATCH_QUERY_CHUNK_SIZE,
 };
-use chainhook_sdk::types::{
+use chainhook_types::{
     BitcoinBlockData, Brc20BalanceData, Brc20Operation, Brc20TokenDeployData, Brc20TransferData,
 };
 use refinery::embed_migrations;
@@ -579,7 +579,7 @@ mod test {
         pg_begin, pg_pool_client,
         types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8},
     };
-    use chainhook_sdk::types::{
+    use chainhook_types::{
         BlockIdentifier, OrdinalInscriptionTransferDestination, TransactionIdentifier,
     };
 

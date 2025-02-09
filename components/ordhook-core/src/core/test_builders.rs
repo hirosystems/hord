@@ -1,4 +1,4 @@
-use chainhook_sdk::types::{
+use chainhook_types::{
     bitcoin::{OutPoint, TxIn, TxOut}, BitcoinBlockData, BitcoinBlockMetadata, BitcoinNetwork, BitcoinTransactionData, BitcoinTransactionMetadata, BlockIdentifier, Brc20Operation, OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalOperation, TransactionIdentifier
 };
 

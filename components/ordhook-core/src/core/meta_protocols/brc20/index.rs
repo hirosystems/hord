@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
-use deadpool_postgres::Transaction;
-use chainhook_sdk::{
-    types::{
-        BitcoinBlockData, BlockIdentifier, Brc20BalanceData, Brc20Operation, Brc20TokenDeployData,
-        Brc20TransferData, OrdinalInscriptionTransferData, OrdinalOperation, TransactionIdentifier,
-    },
-    utils::Context,
+use chainhook_sdk::utils::Context;
+use chainhook_types::{
+    BitcoinBlockData, BlockIdentifier, Brc20BalanceData, Brc20Operation, Brc20TokenDeployData,
+    Brc20TransferData, OrdinalInscriptionTransferData, OrdinalOperation, TransactionIdentifier,
 };
+use deadpool_postgres::Transaction;
 
 use crate::{core::meta_protocols::brc20::u128_amount_to_decimals_str, try_info};
 
@@ -266,7 +264,7 @@ mod test {
     use std::collections::HashMap;
 
     use chainhook_postgres::{pg_begin, pg_pool_client};
-    use chainhook_sdk::types::{
+    use chainhook_types::{
         Brc20BalanceData, Brc20Operation, Brc20TokenDeployData, Brc20TransferData,
         OrdinalInscriptionTransferDestination, OrdinalOperation,
     };
