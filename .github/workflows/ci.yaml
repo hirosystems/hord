@@ -121,7 +121,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [ordhook-cli, ordhook-core]
+        suite:
+          - ordhook-cli
+          - ordhook-core
+          - chainhook-sdk
+          - chainhook-postgres
     runs-on: ubuntu-latest
     defaults:
       run:
