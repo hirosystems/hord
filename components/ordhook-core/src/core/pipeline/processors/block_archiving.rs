@@ -1,4 +1,5 @@
-use chainhook_sdk::{types::BitcoinBlockData, utils::Context};
+use chainhook_sdk::utils::Context;
+use chainhook_types::BitcoinBlockData;
 use crossbeam_channel::{Sender, TryRecvError};
 use rocksdb::DB;
 use std::{

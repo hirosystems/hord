@@ -1,12 +1,13 @@
-use chainhook_sdk::bitcoin::hash_types::Txid;
+use bitcoin::hash_types::Txid;
+use bitcoin::Witness;
 use chainhook_sdk::indexer::bitcoin::BitcoinTransactionFullBreakdown;
 use chainhook_sdk::indexer::bitcoin::{standardize_bitcoin_block, BitcoinBlockFullBreakdown};
-use chainhook_sdk::types::{
+use chainhook_sdk::utils::Context;
+use chainhook_types::{
     BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
     OrdinalInscriptionCharms, OrdinalInscriptionCurseType, OrdinalInscriptionNumber,
     OrdinalInscriptionRevealData, OrdinalInscriptionTransferData, OrdinalOperation,
 };
-use chainhook_sdk::utils::Context;
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -14,11 +15,11 @@ use std::str::FromStr;
 use crate::config::Config;
 use crate::core::meta_protocols::brc20::brc20_activation_height;
 use crate::core::meta_protocols::brc20::parser::{parse_brc20_operation, ParsedBrc20Operation};
+use crate::try_warn;
 use ord::envelope::{Envelope, ParsedEnvelope};
 use ord::inscription::Inscription;
 use ord::inscription_id::InscriptionId;
-use crate::try_warn;
-use {chainhook_sdk::bitcoincore_rpc::bitcoin::Witness, std::str};
+use std::str;
 
 pub fn parse_inscriptions_from_witness(
     input_index: usize,
@@ -249,21 +250,19 @@ pub fn get_inscriptions_transferred_in_block(
 mod test {
     use std::collections::HashMap;
 
+    use bitcoin::Amount;
     use chainhook_sdk::{
-        bitcoin::Amount,
         indexer::bitcoin::{
             BitcoinBlockFullBreakdown, BitcoinTransactionFullBreakdown,
             BitcoinTransactionInputFullBreakdown, BitcoinTransactionInputPrevoutFullBreakdown,
             GetRawTransactionResultVinScriptSig,
         },
-        types::{
-            BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData,
-            OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination,
-            OrdinalOperation,
-        },
         utils::Context,
     };
-
+    use chainhook_types::{
+        BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, OrdinalInscriptionTransferData,
+        OrdinalInscriptionTransferDestination, OrdinalOperation,
+    };
     use test_case::test_case;
 
     use crate::{

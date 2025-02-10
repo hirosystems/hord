@@ -1,4 +1,4 @@
-use chainhook_sdk::types::{
+use chainhook_types::{
     bitcoin::{OutPoint, TxIn, TxOut}, BitcoinBlockData, BitcoinBlockMetadata, BitcoinNetwork, BitcoinTransactionData, BitcoinTransactionMetadata, BlockIdentifier, Brc20Operation, OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalOperation, TransactionIdentifier
 };
 
@@ -155,7 +155,6 @@ impl TestTransactionBuilder {
                 inputs: self.inputs,
                 outputs: self.outputs,
                 ordinal_operations: self.ordinal_operations,
-                stacks_operations: vec![],
                 brc20_operation: self.brc20_operation,
                 proof: None,
                 fee: 0,

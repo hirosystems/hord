@@ -1,7 +1,8 @@
 use std::io::Cursor;
 use std::io::{Read, Write};
 
-use chainhook_sdk::{indexer::bitcoin::BitcoinBlockFullBreakdown, types::BitcoinBlockData};
+use chainhook_sdk::indexer::bitcoin::BitcoinBlockFullBreakdown;
+use chainhook_types::BitcoinBlockData;
 
 #[derive(Debug)]
 pub struct BlockBytesCursor<'a> {
@@ -368,9 +369,9 @@ mod tests {
     use super::*;
     use chainhook_sdk::{
         indexer::bitcoin::{parse_downloaded_block, standardize_bitcoin_block},
-        types::BitcoinNetwork,
         utils::Context,
     };
+    use chainhook_types::BitcoinNetwork;
 
     #[test]
     fn test_block_cursor_roundtrip() {

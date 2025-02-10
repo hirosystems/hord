@@ -1,7 +1,7 @@
 pub mod processors;
 
 use chainhook_sdk::observer::BitcoinConfig;
-use chainhook_sdk::types::BitcoinBlockData;
+use chainhook_types::BitcoinBlockData;
 use chainhook_sdk::utils::Context;
 use crossbeam_channel::bounded;
 use std::collections::{HashMap, VecDeque};

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chainhook_sdk::types::{
+use chainhook_types::{
     BitcoinNetwork, BlockIdentifier, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
     OrdinalInscriptionTransferDestination, TransactionIdentifier,
 };
@@ -297,7 +297,7 @@ pub async fn verify_brc20_transfers(
 #[cfg(test)]
 mod test {
     use chainhook_postgres::{pg_begin, pg_pool_client};
-    use chainhook_sdk::types::{
+    use chainhook_types::{
         BitcoinNetwork, BlockIdentifier, OrdinalInscriptionRevealData,
         OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination,
         TransactionIdentifier,

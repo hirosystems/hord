@@ -5,12 +5,9 @@ use std::{
     path::PathBuf,
 };
 
-use chainhook_types::{
-    BitcoinBlockData, BlockHeader, BlockIdentifier, StacksBlockData, StacksMicroblockData, StacksTransactionData
-};
+use chainhook_types::{BitcoinBlockData, BlockHeader, BlockIdentifier};
 use hiro_system_kit::slog::{self, Logger};
 use reqwest::RequestBuilder;
-use serde_json::Value as JsonValue;
 
 #[derive(Clone)]
 pub struct Context {
@@ -40,58 +37,6 @@ impl Context {
     }
 }
 
-pub trait AbstractStacksBlock {
-    fn get_identifier(&self) -> &BlockIdentifier;
-    fn get_parent_identifier(&self) -> &BlockIdentifier;
-    fn get_transactions(&self) -> &Vec<StacksTransactionData>;
-    fn get_timestamp(&self) -> i64;
-    fn get_serialized_metadata(&self) -> JsonValue;
-}
-
-impl AbstractStacksBlock for StacksBlockData {
-    fn get_identifier(&self) -> &BlockIdentifier {
-        &self.block_identifier
-    }
-
-    fn get_parent_identifier(&self) -> &BlockIdentifier {
-        &self.parent_block_identifier
-    }
-
-    fn get_transactions(&self) -> &Vec<StacksTransactionData> {
-        &self.transactions
-    }
-
-    fn get_timestamp(&self) -> i64 {
-        self.timestamp
-    }
-
-    fn get_serialized_metadata(&self) -> JsonValue {
-        json!(self.metadata)
-    }
-}
-
-impl AbstractStacksBlock for StacksMicroblockData {
-    fn get_identifier(&self) -> &BlockIdentifier {
-        &self.block_identifier
-    }
-
-    fn get_parent_identifier(&self) -> &BlockIdentifier {
-        &self.parent_block_identifier
-    }
-
-    fn get_transactions(&self) -> &Vec<StacksTransactionData> {
-        &self.transactions
-    }
-
-    fn get_timestamp(&self) -> i64 {
-        self.timestamp
-    }
-
-    fn get_serialized_metadata(&self) -> JsonValue {
-        json!(self.metadata)
-    }
-}
-
 pub trait AbstractBlock {
     fn get_identifier(&self) -> &BlockIdentifier;
     fn get_parent_identifier(&self) -> &BlockIdentifier;
@@ -104,26 +49,6 @@ pub trait AbstractBlock {
 }
 
 impl AbstractBlock for BlockHeader {
-    fn get_identifier(&self) -> &BlockIdentifier {
-        &self.block_identifier
-    }
-
-    fn get_parent_identifier(&self) -> &BlockIdentifier {
-        &self.parent_block_identifier
-    }
-}
-
-impl AbstractBlock for StacksBlockData {
-    fn get_identifier(&self) -> &BlockIdentifier {
-        &self.block_identifier
-    }
-
-    fn get_parent_identifier(&self) -> &BlockIdentifier {
-        &self.parent_block_identifier
-    }
-}
-
-impl AbstractBlock for StacksMicroblockData {
     fn get_identifier(&self) -> &BlockIdentifier {
         &self.block_identifier
     }
@@ -206,11 +131,7 @@ pub fn file_append(path: String, bytes: Vec<u8>, ctx: &Context) -> Result<(), St
                 let _ = file.write_all(&bytes);
             }
             Err(e) => {
-                let msg = format!(
-                    "unable to create file {}: {}",
-                    file_path.display(),
-                    e
-                );
+                let msg = format!("unable to create file {}: {}", file_path.display(), e);
                 ctx.try_log(|logger| slog::warn!(logger, "{}", msg));
                 return Err(msg);
             }
@@ -219,7 +140,6 @@ pub fn file_append(path: String, bytes: Vec<u8>, ctx: &Context) -> Result<(), St
 
     let mut file = match OpenOptions::new()
         .create(false)
-        
         .append(true)
         .open(file_path)
     {

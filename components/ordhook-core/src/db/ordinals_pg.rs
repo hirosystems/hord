@@ -4,7 +4,7 @@ use chainhook_postgres::{
     types::{PgBigIntU32, PgNumericU64},
     utils,
 };
-use chainhook_sdk::types::{
+use chainhook_types::{
     bitcoin::TxIn, BitcoinBlockData, OrdinalInscriptionNumber, OrdinalOperation,
     TransactionIdentifier,
 };
@@ -1009,7 +1009,7 @@ mod test {
         types::{PgBigIntU32, PgNumericU64},
         FromPgRow,
     };
-    use chainhook_sdk::types::{
+    use chainhook_types::{
         OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination, OrdinalOperation
     };
     use deadpool_postgres::GenericClient;

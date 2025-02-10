@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use chainhook_sdk::bitcoin::Txid;
+use bitcoin::Txid;
 
 #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq, PartialOrd, Ord)]
 pub struct InscriptionId {

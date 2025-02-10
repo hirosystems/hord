@@ -1,4 +1,4 @@
-use chainhook_sdk::types::OrdinalInscriptionRevealData;
+use chainhook_types::OrdinalInscriptionRevealData;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DbInscriptionParent {

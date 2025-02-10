@@ -1,73 +1,7 @@
-use std::collections::HashSet;
-
 use base58::FromBase58;
 use bitcoincore_rpc::bitcoin::blockdata::opcodes;
 use bitcoincore_rpc::bitcoin::blockdata::script::Builder as BitcoinScriptBuilder;
-use chainhook_types::bitcoin::TxOut;
-use chainhook_types::{
-    BitcoinTransactionData, BitcoinTransactionMetadata, StacksContractCallData,
-    StacksTransactionData, StacksTransactionKind, StacksTransactionMetadata,
-    StacksTransactionReceipt, TransactionIdentifier,
-};
-
-use super::accounts;
-
-pub fn generate_test_tx_stacks_contract_call(
-    txid: u64,
-    sender: &str,
-    contract_name: &str,
-    method: &str,
-    args: Vec<&str>,
-) -> StacksTransactionData {
-    let mut hash = vec![
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    hash.append(&mut txid.to_be_bytes().to_vec());
-
-    let contract_identifier = format!("{}.{}", accounts::deployer_stx_address(), contract_name);
-
-    // Preparing metadata
-    let mut mutated_contracts_radius = HashSet::new();
-    mutated_contracts_radius.insert(contract_identifier.to_string());
-
-    let mutated_assets_radius = HashSet::new();
-
-    let contract_calls_stack = HashSet::new();
-
-    let events = vec![];
-
-    StacksTransactionData {
-        transaction_identifier: TransactionIdentifier {
-            hash: hex::encode(&hash[..]),
-        },
-        operations: vec![],
-        metadata: StacksTransactionMetadata {
-            success: true,
-            raw_tx: "__raw_tx__".to_string(),
-            result: "(ok true)".to_string(),
-            sender: sender.to_string(),
-            fee: 0,
-            nonce: 0,
-            kind: StacksTransactionKind::ContractCall(StacksContractCallData {
-                contract_identifier: contract_identifier.to_string(),
-                method: method.to_string(),
-                args: args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>(),
-            }),
-            execution_cost: None,
-            receipt: StacksTransactionReceipt {
-                mutated_contracts_radius,
-                mutated_assets_radius,
-                contract_calls_stack,
-                events,
-            },
-            description: format!("contract call {}::{}", contract_identifier, method),
-            sponsor: None,
-            position: chainhook_types::StacksTransactionPosition::anchor_block(0),
-            proof: None,
-            contract_abi: None,
-        },
-    }
-}
+use chainhook_types::{bitcoin::TxOut, BitcoinTransactionData, BitcoinTransactionMetadata, TransactionIdentifier};
 
 pub fn generate_test_tx_bitcoin_p2pkh_transfer(
     txid: u64,
@@ -127,7 +61,6 @@ pub fn generate_test_tx_bitcoin_p2pkh_transfer(
             inputs: vec![],
             outputs,
             ordinal_operations: vec![],
-            stacks_operations: vec![],
             brc20_operation: None,
             proof: None,
             fee: 0,

@@ -1,8 +1,6 @@
 use {
     super::{inscription_id::InscriptionId, media::Media, tag::Tag, *},
-    chainhook_sdk::bitcoin::{
-        constants::MAX_SCRIPT_ELEMENT_SIZE, hashes::Hash, opcodes, script, ScriptBuf, Txid
-    },
+    bitcoin::{constants::MAX_SCRIPT_ELEMENT_SIZE, hashes::Hash, opcodes, script, ScriptBuf, Txid},
     ciborium::Value,
     std::{io::Cursor, str},
 };

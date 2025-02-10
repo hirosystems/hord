@@ -22,7 +22,7 @@ use chainhook_postgres::{pg_begin, pg_pool, pg_pool_client};
 use chainhook_sdk::observer::{
     start_event_observer, BitcoinBlockDataCached, ObserverEvent, ObserverSidecar,
 };
-use chainhook_sdk::types::BlockIdentifier;
+use chainhook_types::BlockIdentifier;
 use chainhook_sdk::utils::{BlockHeights, Context};
 use crossbeam_channel::select;
 use dashmap::DashMap;
@@ -135,7 +135,6 @@ impl Service {
             observer_command_rx,
             Some(observer_event_tx),
             Some(zmq_observer_sidecar),
-            None,
             inner_ctx,
         );
 
