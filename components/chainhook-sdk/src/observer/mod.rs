@@ -52,7 +52,6 @@ pub struct EventObserverConfig {
 ///     EventObserverConfigBuilder::new()
 ///         .bitcoind_rpc_password("my_password")
 ///         .bitcoin_network("mainnet")
-///         .stacks_network("mainnet")
 ///         .finish()
 /// }
 /// ```
