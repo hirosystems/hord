@@ -294,15 +294,6 @@ pub async fn rollback_block(
     ctx: &Context,
 ) -> Result<(), String> {
     try_info!(ctx, "Rolling back block #{block_height}");
-    // Drop from blocks DB.
-    let blocks_db = open_blocks_db_with_retry(true, &config, ctx);
-    blocks::delete_blocks_in_block_range(
-        block_height as u32,
-        block_height as u32,
-        &blocks_db,
-        &ctx,
-    );
-    // Drop from postgres.
     {
         let mut ord_client = pg_pool_client(&pg_pools.ordinals).await?;
         let ord_tx = pg_begin(&mut ord_client).await?;

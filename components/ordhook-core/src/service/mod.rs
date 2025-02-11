@@ -11,7 +11,7 @@ use crate::core::{
     should_sync_rocks_db,
 };
 use crate::db::blocks::{
-    find_missing_blocks, insert_entry_in_blocks, open_blocks_db_with_retry, run_compaction,
+    self, find_missing_blocks, insert_entry_in_blocks, open_blocks_db_with_retry, run_compaction,
 };
 use crate::db::cursor::{BlockBytesCursor, TransactionBytesCursor};
 use crate::db::ordinals_pg;
@@ -22,8 +22,8 @@ use chainhook_postgres::{pg_begin, pg_pool, pg_pool_client};
 use chainhook_sdk::observer::{
     start_event_observer, BitcoinBlockDataCached, ObserverEvent, ObserverSidecar,
 };
-use chainhook_types::BlockIdentifier;
 use chainhook_sdk::utils::{BlockHeights, Context};
+use chainhook_types::BlockIdentifier;
 use crossbeam_channel::select;
 use dashmap::DashMap;
 use deadpool_postgres::Pool;
@@ -342,26 +342,36 @@ pub async fn chainhook_sidecar_mutate_blocks(
 ) -> Result<(), String> {
     let blocks_db_rw = open_blocks_db_with_retry(true, &config, ctx);
 
-    for block_id_to_rollback in blocks_ids_to_rollback.iter() {
-        rollback_block(block_id_to_rollback.index, config, pg_pools, ctx).await?;
+    if blocks_ids_to_rollback.len() > 0 {
+        for block_id in blocks_ids_to_rollback.iter() {
+            blocks::delete_blocks_in_block_range(
+                block_id.index as u32,
+                block_id.index as u32,
+                &blocks_db_rw,
+                &ctx,
+            );
+            rollback_block(block_id.index, config, pg_pools, ctx).await?;
+        }
+        blocks_db_rw
+            .flush()
+            .map_err(|e| format!("error dropping rollback blocks from rocksdb: {e}"))?;
     }
 
-    for cache in blocks_to_mutate.iter_mut() {
-        let block_bytes = match BlockBytesCursor::from_standardized_block(&cache.block) {
+    for cached_block in blocks_to_mutate.iter_mut() {
+        if cached_block.processed_by_sidecar {
+            continue;
+        }
+        let block_bytes = match BlockBytesCursor::from_standardized_block(&cached_block.block) {
             Ok(block_bytes) => block_bytes,
             Err(e) => {
-                try_error!(
-                    ctx,
-                    "Unable to compress block #{}: #{}",
-                    cache.block.block_identifier.index,
-                    e.to_string()
-                );
-                continue;
+                return Err(format!(
+                    "Unable to compress block #{}: #{e}",
+                    cached_block.block.block_identifier.index
+                ));
             }
         };
-
-        insert_entry_in_blocks(
-            cache.block.block_identifier.index as u32,
+        blocks::insert_entry_in_blocks(
+            cached_block.block.block_identifier.index as u32,
             &block_bytes,
             true,
             &blocks_db_rw,
@@ -371,24 +381,22 @@ pub async fn chainhook_sidecar_mutate_blocks(
             .flush()
             .map_err(|e| format!("error inserting block to rocksdb: {e}"))?;
 
-        if !cache.processed_by_sidecar {
-            let mut cache_l1 = BTreeMap::new();
-            let mut sequence_cursor = SequenceCursor::new();
-            process_block(
-                &mut cache.block,
-                &vec![],
-                &mut sequence_cursor,
-                &mut cache_l1,
-                &cache_l2,
-                brc20_cache.as_mut(),
-                prometheus,
-                &config,
-                pg_pools,
-                &ctx,
-            )
-            .await?;
-            cache.processed_by_sidecar = true;
-        }
+        let mut cache_l1 = BTreeMap::new();
+        let mut sequence_cursor = SequenceCursor::new();
+        process_block(
+            &mut cached_block.block,
+            &vec![],
+            &mut sequence_cursor,
+            &mut cache_l1,
+            &cache_l2,
+            brc20_cache.as_mut(),
+            prometheus,
+            &config,
+            pg_pools,
+            &ctx,
+        )
+        .await?;
+        cached_block.processed_by_sidecar = true;
     }
     Ok(())
 }
