@@ -18,15 +18,15 @@ use crate::db::ordinals_pg;
 use crate::utils::bitcoind::bitcoind_wait_for_chain_tip;
 use crate::utils::monitoring::{start_serving_prometheus_metrics, PrometheusMonitoring};
 use crate::{try_error, try_info};
-use chainhook_postgres::deadpool_postgres::Pool;
 use chainhook_postgres::{pg_begin, pg_pool, pg_pool_client};
 use chainhook_sdk::observer::{
     start_event_observer, BitcoinBlockDataCached, ObserverEvent, ObserverSidecar,
 };
-use chainhook_sdk::types::BlockIdentifier;
+use chainhook_types::BlockIdentifier;
 use chainhook_sdk::utils::{BlockHeights, Context};
 use crossbeam_channel::select;
 use dashmap::DashMap;
+use deadpool_postgres::Pool;
 use fxhash::FxHasher;
 
 use std::collections::BTreeMap;
@@ -135,7 +135,6 @@ impl Service {
             observer_command_rx,
             Some(observer_event_tx),
             Some(zmq_observer_sidecar),
-            None,
             inner_ctx,
         );
 

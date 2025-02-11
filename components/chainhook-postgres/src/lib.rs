@@ -1,10 +1,7 @@
 pub mod types;
 pub mod utils;
 
-pub use deadpool_postgres;
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod, Transaction};
-pub use tokio_postgres;
-
 use tokio_postgres::{Client, Config, NoTls, Row};
 
 /// Standard chunk size to use when we're batching multiple query inserts into a single SQL statement to save on DB round trips.

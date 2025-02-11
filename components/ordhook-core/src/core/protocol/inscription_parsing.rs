@@ -1,12 +1,13 @@
-use chainhook_sdk::bitcoincore_rpc_json::bitcoin::Txid;
+use bitcoin::hash_types::Txid;
+use bitcoin::Witness;
 use chainhook_sdk::indexer::bitcoin::BitcoinTransactionFullBreakdown;
 use chainhook_sdk::indexer::bitcoin::{standardize_bitcoin_block, BitcoinBlockFullBreakdown};
-use chainhook_sdk::types::{
-    BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
-    OrdinalInscriptionCurseType, OrdinalInscriptionNumber, OrdinalInscriptionRevealData,
-    OrdinalInscriptionTransferData, OrdinalOperation,
-};
 use chainhook_sdk::utils::Context;
+use chainhook_types::{
+    BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
+    OrdinalInscriptionCharms, OrdinalInscriptionCurseType, OrdinalInscriptionNumber,
+    OrdinalInscriptionRevealData, OrdinalInscriptionTransferData, OrdinalOperation,
+};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -14,11 +15,11 @@ use std::str::FromStr;
 use crate::config::Config;
 use crate::core::meta_protocols::brc20::brc20_activation_height;
 use crate::core::meta_protocols::brc20::parser::{parse_brc20_operation, ParsedBrc20Operation};
-use crate::ord::envelope::{Envelope, ParsedEnvelope, RawEnvelope};
-use crate::ord::inscription::Inscription;
-use crate::ord::inscription_id::InscriptionId;
 use crate::try_warn;
-use {chainhook_sdk::bitcoincore_rpc::bitcoin::Witness, std::str};
+use ord::envelope::{Envelope, ParsedEnvelope};
+use ord::inscription::Inscription;
+use ord::inscription_id::InscriptionId;
+use std::str;
 
 pub fn parse_inscriptions_from_witness(
     input_index: usize,
@@ -27,7 +28,7 @@ pub fn parse_inscriptions_from_witness(
 ) -> Option<Vec<(OrdinalInscriptionRevealData, Inscription)>> {
     let witness = Witness::from_slice(&witness_bytes);
     let tapscript = witness.tapscript()?;
-    let envelopes: Vec<Envelope<Inscription>> = RawEnvelope::from_tapscript(tapscript, input_index)
+    let envelopes: Vec<Envelope<Inscription>> = Envelope::from_tapscript(tapscript, input_index)
         .ok()?
         .into_iter()
         .map(|e| ParsedEnvelope::from(e))
@@ -64,7 +65,12 @@ pub fn parse_inscriptions_from_witness(
         let mut content_bytes = "0x".to_string();
         content_bytes.push_str(&hex::encode(&inscription_content_bytes));
 
-        let parent = envelope.payload.parent().and_then(|i| Some(i.to_string()));
+        let parents = envelope
+            .payload
+            .parents()
+            .iter()
+            .map(|i| i.to_string())
+            .collect();
         let delegate = envelope
             .payload
             .delegate()
@@ -75,12 +81,9 @@ pub fn parse_inscriptions_from_witness(
             .and_then(|p| Some(p.to_string()));
         let metadata = envelope.payload.metadata().and_then(|m| Some(json!(m)));
 
+        // Most of these fields will be calculated later when we know for certain which satoshi contains this inscription.
         let reveal_data = OrdinalInscriptionRevealData {
-            content_type: envelope
-                .payload
-                .content_type()
-                .unwrap_or("unknown")
-                .to_string(),
+            content_type: envelope.payload.content_type().unwrap_or("").to_string(),
             content_bytes,
             content_length: inscription_content_bytes.len(),
             inscription_id: inscription_id.to_string(),
@@ -91,7 +94,7 @@ pub fn parse_inscriptions_from_witness(
             inscription_fee: 0,
             inscription_number: OrdinalInscriptionNumber::zero(),
             inscriber_address: None,
-            parent,
+            parents,
             delegate,
             metaprotocol,
             metadata,
@@ -101,6 +104,7 @@ pub fn parse_inscriptions_from_witness(
             transfers_pre_inscription: 0,
             satpoint_post_inscription: format!(""),
             curse_type,
+            charms: OrdinalInscriptionCharms::none(),
         };
         inscriptions.push((reveal_data, envelope.payload));
     }
@@ -246,21 +250,19 @@ pub fn get_inscriptions_transferred_in_block(
 mod test {
     use std::collections::HashMap;
 
+    use bitcoin::Amount;
     use chainhook_sdk::{
-        bitcoin::Amount,
         indexer::bitcoin::{
             BitcoinBlockFullBreakdown, BitcoinTransactionFullBreakdown,
             BitcoinTransactionInputFullBreakdown, BitcoinTransactionInputPrevoutFullBreakdown,
             GetRawTransactionResultVinScriptSig,
         },
-        types::{
-            BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData,
-            OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination,
-            OrdinalOperation,
-        },
         utils::Context,
     };
-
+    use chainhook_types::{
+        BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, OrdinalInscriptionTransferData,
+        OrdinalInscriptionTransferDestination, OrdinalOperation,
+    };
     use test_case::test_case;
 
     use crate::{

@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 
-use chainhook_sdk::types::TransactionIdentifier;
+use chainhook_types::TransactionIdentifier;
 
 pub fn read_file_content_at_path(file_path: &PathBuf) -> Result<Vec<u8>, String> {
     use std::fs::File;

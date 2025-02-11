@@ -1,12 +1,12 @@
 use chainhook_postgres::{
-    tokio_postgres::Row,
     types::{PgBigIntU32, PgNumericU64},
     FromPgRow,
 };
-use chainhook_sdk::types::{
+use chainhook_types::{
     BlockIdentifier, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
     OrdinalInscriptionTransferDestination, TransactionIdentifier,
 };
+use tokio_postgres::Row;
 
 use crate::core::protocol::satoshi_tracking::parse_output_and_offset_from_satpoint;
 

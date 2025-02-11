@@ -1,16 +1,8 @@
 use crate::config::file::ConfigFile;
 use crate::config::generator::generate_config;
+use chainhook_sdk::utils::{BlockHeights, Context};
 use clap::{Parser, Subcommand};
 use hiro_system_kit;
-use ordhook::chainhook_sdk::chainhooks::types::{
-    BitcoinChainhookSpecification, HttpHook, InscriptionFeedData, OrdinalsMetaProtocol,
-};
-use ordhook::chainhook_sdk::chainhooks::types::{
-    BitcoinPredicateType, HookAction, OrdinalOperations,
-};
-use ordhook::chainhook_sdk::utils::BlockHeights;
-use ordhook::chainhook_sdk::utils::Context;
-use ordhook::config::Config;
 use ordhook::core::first_inscription_height;
 use ordhook::core::pipeline::bitcoind_download_blocks;
 use ordhook::core::pipeline::processors::block_archiving::start_block_archiving_processor;
@@ -22,7 +14,6 @@ use ordhook::db::cursor::BlockBytesCursor;
 use ordhook::db::{migrate_dbs, reset_dbs};
 use ordhook::service::Service;
 use ordhook::try_info;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
@@ -383,7 +374,7 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
                         info!(ctx.expect_logger(), "--------------------");
                         info!(ctx.expect_logger(), "Block: {i}");
                         for tx in block.iter_tx() {
-                            info!(ctx.expect_logger(), "Tx: {}", ordhook::hex::encode(tx.txid));
+                            info!(ctx.expect_logger(), "Tx: {}", hex::encode(tx.txid));
                         }
                     }
                 }
@@ -439,53 +430,4 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
         }
     }
     Ok(())
-}
-
-pub fn build_predicate_from_cli(
-    config: &Config,
-    post_to: &str,
-    block_heights: Option<&BlockHeights>,
-    start_block: Option<u64>,
-    auth_token: Option<String>,
-    is_streaming: bool,
-) -> Result<BitcoinChainhookSpecification, String> {
-    // Retrieve last block height known, and display it
-    let (start_block, end_block, blocks) = match (start_block, block_heights) {
-        (None, Some(BlockHeights::BlockRange(start, end))) => (Some(*start), Some(*end), None),
-        (None, Some(BlockHeights::Blocks(blocks))) => (None, None, Some(blocks.clone())),
-        (Some(start), None) => (Some(start), None, None),
-        _ => unreachable!(),
-    };
-    let mut meta_protocols: Option<HashSet<OrdinalsMetaProtocol>> = None;
-    if config.meta_protocols.brc20 {
-        let mut meta = HashSet::<OrdinalsMetaProtocol>::new();
-        meta.insert(OrdinalsMetaProtocol::All);
-        meta_protocols = Some(meta.clone());
-    }
-    let predicate = BitcoinChainhookSpecification {
-        network: config.network.bitcoin_network.clone(),
-        uuid: post_to.to_string(),
-        owner_uuid: None,
-        name: post_to.to_string(),
-        version: 1,
-        start_block,
-        end_block,
-        blocks,
-        expire_after_occurrence: None,
-        include_proof: false,
-        include_inputs: false,
-        include_outputs: false,
-        include_witness: false,
-        expired_at: None,
-        enabled: is_streaming,
-        predicate: BitcoinPredicateType::OrdinalsProtocol(OrdinalOperations::InscriptionFeed(
-            InscriptionFeedData { meta_protocols },
-        )),
-        action: HookAction::HttpPost(HttpHook {
-            url: post_to.to_string(),
-            authorization_header: format!("Bearer {}", auth_token.unwrap_or("".to_string())),
-        }),
-    };
-
-    Ok(predicate)
 }

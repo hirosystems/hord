@@ -9,13 +9,9 @@ extern crate lazy_static;
 
 extern crate serde;
 
-pub extern crate chainhook_sdk;
-pub extern crate hex;
-
 pub mod config;
 pub mod core;
 pub mod db;
 pub mod download;
-pub mod ord;
 pub mod service;
 pub mod utils;

@@ -1,4 +1,4 @@
-use chainhook_sdk::types::OrdinalInscriptionRevealData;
+use chainhook_types::OrdinalInscriptionRevealData;
 use regex::Regex;
 
 lazy_static! {
@@ -33,7 +33,7 @@ impl DbInscriptionRecursion {
 
 #[cfg(test)]
 mod test {
-    use chainhook_sdk::types::{OrdinalInscriptionNumber, OrdinalInscriptionRevealData};
+    use chainhook_types::{OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData};
 
     use super::DbInscriptionRecursion;
 
@@ -53,7 +53,7 @@ mod test {
             delegate: None,
             metaprotocol: None,
             metadata: None,
-            parent: None,
+            parents: vec![],
             ordinal_number: 959876891264081,
             ordinal_block_height: 191975,
             ordinal_offset: 0,
@@ -61,6 +61,7 @@ mod test {
             transfers_pre_inscription: 0,
             satpoint_post_inscription: "e47a70a218dfa746ba410b1c057403bb481523d830562fd8dec61ec4d2915e5f:0:0".to_string(),
             curse_type: None,
+            charms: OrdinalInscriptionCharms::none(),
         };
         let recursions = DbInscriptionRecursion::from_reveal(&reveal).unwrap();
         assert_eq!(2, recursions.len());

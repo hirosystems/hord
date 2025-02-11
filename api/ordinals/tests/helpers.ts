@@ -75,7 +75,6 @@ type TestOrdinalsInscriptionsRow = {
   pointer: string | null;
   metadata: string | null;
   metaprotocol: string | null;
-  parent: string | null;
   delegate: string | null;
   timestamp: number;
 };
@@ -183,6 +182,17 @@ export async function insertTestInscriptionRecursion(
   await sql`INSERT INTO inscription_recursions ${sql(row)}`;
 }
 
+type TestOrdinalsInscriptionParentsRow = {
+  inscription_id: string;
+  parent_inscription_id: string;
+};
+export async function insertTestInscriptionParent(
+  sql: PgSqlClient,
+  row: TestOrdinalsInscriptionParentsRow
+) {
+  await sql`INSERT INTO inscription_parents ${sql(row)}`;
+}
+
 export async function updateTestChainTip(sql: PgSqlClient, blockHeight: number) {
   await sql`UPDATE chain_tip SET block_height = ${blockHeight}`;
 }
@@ -218,7 +228,6 @@ export async function inscriptionReveal(sql: PgSqlClient, reveal: TestOrdinalsIn
     pointer: reveal.pointer,
     metadata: reveal.metadata,
     metaprotocol: reveal.metaprotocol,
-    parent: reveal.parent,
     delegate: reveal.delegate,
     timestamp: reveal.timestamp,
   });

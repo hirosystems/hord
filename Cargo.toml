@@ -1,8 +1,17 @@
 [workspace]
 members = [
+    "components/chainhook-sdk",
     "components/chainhook-postgres",
+    "components/chainhook-types-rs",
     "components/ordhook-cli",
     "components/ordhook-core",
+    "components/ord",
 ]
 default-members = ["components/ordhook-cli"]
 resolver = "2"
+
+[workspace.dependencies]
+bitcoin = "0.31.2"
+tokio-postgres = "0.7.10"
+deadpool-postgres = "0.14.0"
+refinery = { version = "0.8", features = ["tokio-postgres"] }

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use chainhook_postgres::deadpool_postgres::Transaction;
-use chainhook_sdk::types::{
+use chainhook_types::{
     BitcoinNetwork, BlockIdentifier, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
     OrdinalInscriptionTransferDestination, TransactionIdentifier,
 };
 use chainhook_sdk::utils::Context;
+use deadpool_postgres::Transaction;
 
 use crate::try_debug;
 
@@ -106,7 +106,7 @@ pub async fn verify_brc20_operation(
                 return Ok(None);
             };
             if data.tick.len() == 5 {
-                let Some(parent) = &reveal.parent else {
+                if reveal.parents.len() == 0 {
                     try_debug!(
                         ctx,
                         "BRC-20: Attempting to mint self-minted token {} without a parent ref",
@@ -114,7 +114,7 @@ pub async fn verify_brc20_operation(
                     );
                     return Ok(None);
                 };
-                if parent != &token.inscription_id {
+                if !reveal.parents.contains(&token.inscription_id) {
                     try_debug!(
                         ctx,
                         "BRC-20: Mint attempt for self-minted token {} does not point to deploy as parent",
@@ -297,7 +297,7 @@ pub async fn verify_brc20_transfers(
 #[cfg(test)]
 mod test {
     use chainhook_postgres::{pg_begin, pg_pool_client};
-    use chainhook_sdk::types::{
+    use chainhook_types::{
         BitcoinNetwork, BlockIdentifier, OrdinalInscriptionRevealData,
         OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination,
         TransactionIdentifier,
@@ -587,7 +587,7 @@ mod test {
             tick: "$pepe".to_string(),
             amt: "100.00".to_string(),
         }),
-        Brc20RevealBuilder::new().inscription_number(1).parent(Some("test".to_string())).build()
+        Brc20RevealBuilder::new().inscription_number(1).parents(vec!["test".to_string()]).build()
         => Ok(None);
         "with mint with wrong parent pointer"
     )]
@@ -598,7 +598,7 @@ mod test {
         }),
         Brc20RevealBuilder::new()
             .inscription_number(1)
-            .parent(Some("9bb2314d666ae0b1db8161cb373fcc1381681f71445c4e0335aa80ea9c37fcddi0".to_string()))
+            .parents(vec!["9bb2314d666ae0b1db8161cb373fcc1381681f71445c4e0335aa80ea9c37fcddi0".to_string()])
             .build()
         => Ok(Some(VerifiedBrc20Operation::TokenMint(VerifiedBrc20BalanceData {
             tick: "$pepe".to_string(),

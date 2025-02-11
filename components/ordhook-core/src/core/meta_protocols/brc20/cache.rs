@@ -3,14 +3,12 @@ use std::{
     num::NonZeroUsize,
 };
 
-use chainhook_postgres::{
-    deadpool_postgres::GenericClient,
-    types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8},
-};
-use chainhook_sdk::types::{
+use chainhook_postgres::types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8};
+use chainhook_types::{
     BlockIdentifier, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
     TransactionIdentifier,
 };
+use deadpool_postgres::GenericClient;
 use lru::LruCache;
 use maplit::hashmap;
 
@@ -491,7 +489,7 @@ impl Brc20MemoryCache {
 #[cfg(test)]
 mod test {
     use chainhook_postgres::{pg_begin, pg_pool_client};
-    use chainhook_sdk::types::{BitcoinNetwork, BlockIdentifier, TransactionIdentifier};
+    use chainhook_types::{BitcoinNetwork, BlockIdentifier, TransactionIdentifier};
     use test_case::test_case;
 
     use crate::{
