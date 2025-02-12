@@ -3,7 +3,7 @@ use crate::core::meta_protocols::brc20::cache::{brc20_new_cache, Brc20MemoryCach
 use crate::core::pipeline::bitcoind_download_blocks;
 use crate::core::pipeline::processors::block_archiving::start_block_archiving_processor;
 use crate::core::pipeline::processors::inscription_indexing::{
-    process_block, rollback_block, start_inscription_indexing_processor,
+    index_block, rollback_block, start_inscription_indexing_processor,
 };
 use crate::core::protocol::sequence_cursor::SequenceCursor;
 use crate::core::{
@@ -11,7 +11,7 @@ use crate::core::{
     should_sync_rocks_db,
 };
 use crate::db::blocks::{
-    self, find_missing_blocks, insert_entry_in_blocks, open_blocks_db_with_retry, run_compaction,
+    self, find_missing_blocks, open_blocks_db_with_retry, run_compaction,
 };
 use crate::db::cursor::{BlockBytesCursor, TransactionBytesCursor};
 use crate::db::ordinals_pg;
@@ -303,7 +303,6 @@ impl Service {
                 &self.config,
                 &self.pg_pools,
                 &self.ctx,
-                None,
                 &self.prometheus,
             );
             try_info!(
@@ -383,7 +382,7 @@ pub async fn chainhook_sidecar_mutate_blocks(
 
         let mut cache_l1 = BTreeMap::new();
         let mut sequence_cursor = SequenceCursor::new();
-        process_block(
+        index_block(
             &mut cached_block.block,
             &vec![],
             &mut sequence_cursor,
