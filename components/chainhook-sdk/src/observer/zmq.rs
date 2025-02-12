@@ -49,7 +49,10 @@ pub async fn start_zeromq_runloop(
 
     let mut socket = new_zmq_socket();
     assert!(socket.connect(&bitcoind_zmq_url).is_ok());
-    try_info!(ctx, "zmq: Connected, waiting for ZMQ messages from bitcoind");
+    try_info!(
+        ctx,
+        "zmq: Connected, waiting for ZMQ messages from bitcoind"
+    );
 
     let mut bitcoin_blocks_pool = ForkScratchPad::new();
 
@@ -66,7 +69,11 @@ pub async fn start_zeromq_runloop(
         let (topic, data, _sequence) = (&msg[0], &msg[1], &msg[2]);
 
         if !topic.eq(b"hashblock") {
-            try_warn!(ctx, "zmq: {} Topic not supported", String::from_utf8(topic.clone()).unwrap());
+            try_warn!(
+                ctx,
+                "zmq: {} Topic not supported",
+                String::from_utf8(topic.clone()).unwrap()
+            );
             continue;
         }
 
@@ -104,12 +111,10 @@ pub async fn start_zeromq_runloop(
                             .send(ObserverCommand::PropagateBitcoinChainEvent(event));
                     }
                     Err(e) => {
-                        ctx.try_log(|logger| {
-                            slog::warn!(logger, "Unable to append block: {:?}", e)
-                        });
+                        try_warn!(ctx, "zmq: Unable to append block: {e}");
                     }
                     Ok(None) => {
-                        ctx.try_log(|logger| slog::warn!(logger, "Unable to append block"));
+                        try_warn!(ctx, "zmq: Unable to append block");
                     }
                 }
             } else {
@@ -124,12 +129,10 @@ pub async fn start_zeromq_runloop(
                     .parent_block_identifier
                     .get_hash_bytes_str()
                     .to_string();
-                ctx.try_log(|logger| {
-                    slog::info!(
-                        logger,
-                        "Possible re-org detected, retrieving parent block {parent_block_hash}"
-                    )
-                });
+                try_info!(
+                    ctx,
+                    "zmq: Re-org detected, retrieving parent block {parent_block_hash}"
+                );
                 block_hashes.push_front(block_hash);
                 block_hashes.push_front(parent_block_hash);
             }

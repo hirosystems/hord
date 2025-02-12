@@ -331,7 +331,7 @@ impl Service {
 
 pub async fn chainhook_sidecar_mutate_blocks(
     blocks_to_mutate: &mut Vec<BitcoinBlockDataCached>,
-    blocks_ids_to_rollback: &Vec<BlockIdentifier>,
+    block_ids_to_rollback: &Vec<BlockIdentifier>,
     cache_l2: &Arc<DashMap<(u32, [u8; 8]), TransactionBytesCursor, BuildHasherDefault<FxHasher>>>,
     brc20_cache: &mut Option<Brc20MemoryCache>,
     prometheus: &PrometheusMonitoring,
@@ -339,9 +339,9 @@ pub async fn chainhook_sidecar_mutate_blocks(
     pg_pools: &PgConnectionPools,
     ctx: &Context,
 ) -> Result<(), String> {
-    if blocks_ids_to_rollback.len() > 0 {
+    if block_ids_to_rollback.len() > 0 {
         let blocks_db_rw = open_blocks_db_with_retry(true, &config, ctx);
-        for block_id in blocks_ids_to_rollback.iter() {
+        for block_id in block_ids_to_rollback.iter() {
             blocks::delete_blocks_in_block_range(
                 block_id.index as u32,
                 block_id.index as u32,
