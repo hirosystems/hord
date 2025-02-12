@@ -64,8 +64,14 @@ pub fn parallelize_inscription_data_computations(
     config: &Config,
     ctx: &Context,
 ) -> Result<bool, String> {
+    let inner_ctx = if config.logs.ordinals_internals {
+        ctx.clone()
+    } else {
+        Context::empty()
+    };
+
     try_debug!(
-        ctx,
+        inner_ctx,
         "Inscriptions data computation for block #{} started",
         block.block_identifier.index
     );
@@ -74,7 +80,7 @@ pub fn parallelize_inscription_data_computations(
     let has_transactions_to_process = !transactions_ids.is_empty() || !l1_cache_hits.is_empty();
     if !has_transactions_to_process {
         try_debug!(
-            ctx,
+            inner_ctx,
             "No reveal transactions found at block #{}",
             block.block_identifier.index
         );
@@ -94,7 +100,7 @@ pub fn parallelize_inscription_data_computations(
         tx_thread_pool.push(tx);
 
         let moved_traversal_tx = traversal_tx.clone();
-        let moved_ctx = ctx.clone();
+        let moved_ctx = inner_ctx.clone();
         let moved_config = config.clone();
 
         let local_cache = cache_l2.clone();
@@ -148,7 +154,7 @@ pub fn parallelize_inscription_data_computations(
         .collect::<Vec<_>>();
 
     try_debug!(
-        ctx,
+        inner_ctx,
         "Number of inscriptions in block #{} to process: {} (L1 cache hits: {}, queue: [{}], L1 cache len: {}, L2 cache len: {})",
         block.block_identifier.index,
         transactions_ids.len(),
@@ -188,7 +194,7 @@ pub fn parallelize_inscription_data_computations(
         match traversal_result {
             Ok((traversal, inscription_pointer, _)) => {
                 try_debug!(
-                    ctx,
+                    inner_ctx,
                     "Completed ordinal number retrieval for Satpoint {}:{}:{} (block: #{}:{}, transfers: {}, progress: {traversals_received}/{expected_traversals}, priority queue: {prioritary}, thread: {thread_index})",
                     traversal.transaction_identifier_inscription.hash,
                     traversal.inscription_input_index,
@@ -207,7 +213,7 @@ pub fn parallelize_inscription_data_computations(
                 );
             }
             Err(e) => {
-                try_error!(ctx, "Unable to compute inscription's Satoshi: {e}");
+                try_error!(inner_ctx, "Unable to compute inscription's Satoshi: {e}");
             }
         }
 
@@ -225,7 +231,7 @@ pub fn parallelize_inscription_data_computations(
                     let (transactions_ids, _) = get_transactions_to_process(next_block, cache_l1);
 
                     try_info!(
-                        ctx,
+                        inner_ctx,
                         "Number of inscriptions in block #{} to pre-process: {}",
                         block.block_identifier.index,
                         transactions_ids.len()
@@ -248,7 +254,7 @@ pub fn parallelize_inscription_data_computations(
         }
     }
     try_debug!(
-        ctx,
+        inner_ctx,
         "Inscriptions data computation for block #{} collected",
         block.block_identifier.index
     );
@@ -259,7 +265,7 @@ pub fn parallelize_inscription_data_computations(
         if let Ok((traversal_result, _prioritary, thread_index)) = traversal_rx.try_recv() {
             if let Ok((traversal, inscription_pointer, _)) = traversal_result {
                 try_debug!(
-                    ctx,
+                    inner_ctx,
                     "Completed ordinal number retrieval for Satpoint {}:{}:{} (block: #{}:{}, transfers: {}, pre-retrieval, thread: {thread_index})",
                     traversal.transaction_identifier_inscription.hash,
                     traversal.inscription_input_index,
@@ -288,7 +294,7 @@ pub fn parallelize_inscription_data_computations(
     });
 
     try_debug!(
-        ctx,
+        inner_ctx,
         "Inscriptions data computation for block #{} ended",
         block.block_identifier.index
     );
