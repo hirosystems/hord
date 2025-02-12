@@ -14,7 +14,7 @@ lru = "0.13.0"
 bitcoin = { workspace = true }
 chainhook-sdk = { path = "../chainhook-sdk" }
 chainhook-types = { path = "../chainhook-types-rs" }
-hiro-system-kit = "0.3.1"
+hiro-system-kit = { workspace = true }
 reqwest = { version = "0.11", default-features = false, features = [
     "stream",
     "json",
