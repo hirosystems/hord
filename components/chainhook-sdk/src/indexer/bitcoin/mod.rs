@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::observer::BitcoinConfig;
+use crate::try_debug;
 use crate::utils::Context;
 use bitcoincore_rpc::bitcoin::hashes::Hash;
 use bitcoincore_rpc::bitcoin::{self, Amount, BlockHash};
@@ -342,7 +343,7 @@ pub fn standardize_bitcoin_block(
     let mut transactions = vec![];
     let block_height = block.height as u64;
 
-    ctx.try_log(|logger| slog::debug!(logger, "Standardizing Bitcoin block {}", block.hash,));
+    try_debug!(ctx, "Standardizing Bitcoin block #{} {}", block.height, block.hash);
 
     for (tx_index, mut tx) in block.tx.into_iter().enumerate() {
         let txid = tx.txid.to_string();
