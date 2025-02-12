@@ -20,7 +20,7 @@ use std::time::Duration;
 use std::{process, u64};
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(name = "ordhook", author, version, about, long_about = None)]
 struct Opts {
     #[clap(subcommand)]
     command: Command,

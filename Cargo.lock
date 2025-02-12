@@ -422,7 +422,7 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chainhook-postgres"
-version = "0.1.0"
+version = "2.2.5"
 dependencies = [
  "bytes",
  "deadpool-postgres",
@@ -435,7 +435,7 @@ dependencies = [
 
 [[package]]
 name = "chainhook-sdk"
-version = "0.12.12"
+version = "2.2.5"
 dependencies = [
  "assert-json-diff",
  "base58",
@@ -2058,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "ordhook"
-version = "1.0.0"
+version = "2.2.5"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -2103,7 +2103,7 @@ dependencies = [
 
 [[package]]
 name = "ordhook-cli"
-version = "2.0.0"
+version = "2.2.5"
 dependencies = [
  "chainhook-sdk",
  "chainhook-types",
