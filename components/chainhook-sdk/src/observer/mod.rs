@@ -181,7 +181,7 @@ impl EventObserverConfig {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ObserverCommand {
-    ProcessBitcoinBlock(BitcoinBlockFullBreakdown),
+    StandardizeBitcoinBlock(BitcoinBlockFullBreakdown),
     CacheBitcoinBlock(BitcoinBlockData),
     PropagateBitcoinChainEvent(BlockchainEvent),
     Terminate,
@@ -489,7 +489,7 @@ pub async fn start_observer_commands_handler(
             ObserverCommand::Terminate => {
                 break;
             }
-            ObserverCommand::ProcessBitcoinBlock(mut block_data) => {
+            ObserverCommand::StandardizeBitcoinBlock(mut block_data) => {
                 let block_hash = block_data.hash.to_string();
                 let mut attempts = 0;
                 let max_attempts = 10;
