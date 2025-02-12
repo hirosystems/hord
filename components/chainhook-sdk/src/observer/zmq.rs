@@ -8,6 +8,7 @@ use crate::{
         bitcoin::{build_http_client, download_and_parse_block_with_retry},
         fork_scratch_pad::ForkScratchPad,
     },
+    try_info, try_warn,
     utils::Context,
 };
 use std::collections::VecDeque;
@@ -41,16 +42,17 @@ pub async fn start_zeromq_runloop(
     let bitcoin_config = config.get_bitcoin_config();
     let http_client = build_http_client();
 
-    ctx.try_log(|logger| {
-        slog::info!(
-            logger,
-            "Waiting for ZMQ connection acknowledgment from bitcoind"
-        )
-    });
+    try_info!(
+        ctx,
+        "zmq: Waiting for ZMQ connection acknowledgment from bitcoind"
+    );
 
     let mut socket = new_zmq_socket();
     assert!(socket.connect(&bitcoind_zmq_url).is_ok());
-    ctx.try_log(|logger| slog::info!(logger, "Waiting for ZMQ messages from bitcoind"));
+    try_info!(
+        ctx,
+        "zmq: Connected, waiting for ZMQ messages from bitcoind"
+    );
 
     let mut bitcoin_blocks_pool = ForkScratchPad::new();
 
@@ -58,9 +60,7 @@ pub async fn start_zeromq_runloop(
         let msg = match socket.recv_multipart(0) {
             Ok(msg) => msg,
             Err(e) => {
-                ctx.try_log(|logger| {
-                    slog::error!(logger, "Unable to receive ZMQ message: {}", e.to_string())
-                });
+                try_warn!(ctx, "zmq: Unable to receive ZMQ message: {e}");
                 socket = new_zmq_socket();
                 assert!(socket.connect(&bitcoind_zmq_url).is_ok());
                 continue;
@@ -69,13 +69,17 @@ pub async fn start_zeromq_runloop(
         let (topic, data, _sequence) = (&msg[0], &msg[1], &msg[2]);
 
         if !topic.eq(b"hashblock") {
-            ctx.try_log(|logger| slog::error!(logger, "Topic not supported",));
+            try_warn!(
+                ctx,
+                "zmq: {} Topic not supported",
+                String::from_utf8(topic.clone()).unwrap()
+            );
             continue;
         }
 
         let block_hash = hex::encode(data);
 
-        ctx.try_log(|logger| slog::info!(logger, "Bitcoin block hash announced #{block_hash}",));
+        try_info!(ctx, "zmq: Bitcoin block hash announced {block_hash}");
 
         let mut block_hashes: VecDeque<String> = VecDeque::new();
         block_hashes.push_front(block_hash);
@@ -91,27 +95,14 @@ pub async fn start_zeromq_runloop(
             {
                 Ok(block) => block,
                 Err(e) => {
-                    ctx.try_log(|logger| {
-                        slog::warn!(
-                            logger,
-                            "unable to download_and_parse_block: {}",
-                            e.to_string()
-                        )
-                    });
+                    try_warn!(ctx, "zmq: Unable to download block: {e}");
                     continue;
                 }
             };
 
             let header = block.get_block_header();
-            ctx.try_log(|logger| {
-                slog::info!(
-                    logger,
-                    "Bitcoin block #{} dispatched for processing",
-                    block.height
-                )
-            });
-
-            let _ = observer_commands_tx.send(ObserverCommand::ProcessBitcoinBlock(block));
+            try_info!(ctx, "zmq: Standardizing bitcoin block #{}", block.height);
+            let _ = observer_commands_tx.send(ObserverCommand::StandardizeBitcoinBlock(block));
 
             if bitcoin_blocks_pool.can_process_header(&header) {
                 match bitcoin_blocks_pool.process_header(header, ctx) {
@@ -120,12 +111,10 @@ pub async fn start_zeromq_runloop(
                             .send(ObserverCommand::PropagateBitcoinChainEvent(event));
                     }
                     Err(e) => {
-                        ctx.try_log(|logger| {
-                            slog::warn!(logger, "Unable to append block: {:?}", e)
-                        });
+                        try_warn!(ctx, "zmq: Unable to append block: {e}");
                     }
                     Ok(None) => {
-                        ctx.try_log(|logger| slog::warn!(logger, "Unable to append block"));
+                        try_warn!(ctx, "zmq: Unable to append block");
                     }
                 }
             } else {
@@ -140,12 +129,10 @@ pub async fn start_zeromq_runloop(
                     .parent_block_identifier
                     .get_hash_bytes_str()
                     .to_string();
-                ctx.try_log(|logger| {
-                    slog::info!(
-                        logger,
-                        "Possible re-org detected, retrieving parent block {parent_block_hash}"
-                    )
-                });
+                try_info!(
+                    ctx,
+                    "zmq: Re-org detected, retrieving parent block {parent_block_hash}"
+                );
                 block_hashes.push_front(block_hash);
                 block_hashes.push_front(parent_block_hash);
             }

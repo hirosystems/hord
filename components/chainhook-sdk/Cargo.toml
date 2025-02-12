@@ -10,7 +10,7 @@ serde = { version = "1", features = ["rc"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 serde-hex = "0.1.0"
 serde_derive = "1"
-hiro-system-kit = { version = "0.3.4", optional = true }
+hiro-system-kit = { workspace = true }
 rocket = { version = "=0.5.0", features = ["json"] }
 bitcoin = { workspace = true }
 bitcoincore-rpc = "0.18.0"

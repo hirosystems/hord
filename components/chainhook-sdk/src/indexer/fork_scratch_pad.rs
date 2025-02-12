@@ -1,5 +1,6 @@
 use crate::{
     indexer::{ChainSegment, ChainSegmentIncompatibility},
+    try_error, try_info, try_warn,
     utils::Context,
 };
 use chainhook_types::{
@@ -49,34 +50,35 @@ impl ForkScratchPad {
         header: BlockHeader,
         ctx: &Context,
     ) -> Result<Option<BlockchainEvent>, String> {
-        ctx.try_log(|logger| slog::info!(logger, "Start processing {}", header.block_identifier));
-
-        // Keep block data in memory
+        try_info!(
+            ctx,
+            "ForkScratchPad: Start processing {}",
+            header.block_identifier
+        );
         let entry_exists = self
             .headers_store
             .insert(header.block_identifier.clone(), header.clone());
         if entry_exists.is_some() {
-            ctx.try_log(|logger| {
-                slog::warn!(
-                    logger,
-                    "Block {} has already been processed",
-                    header.block_identifier
-                )
-            });
+            try_warn!(
+                ctx,
+                "ForkScratchPad: Block {} has already been processed",
+                header.block_identifier
+            );
             return Ok(None);
         }
 
         for (i, fork) in self.forks.iter() {
-            ctx.try_log(|logger| slog::info!(logger, "Active fork {}: {}", i, fork));
+            try_info!(ctx, "ForkScratchPad: Active fork {}: {}", i, fork);
         }
         // Retrieve previous canonical fork
         let previous_canonical_fork_id = self.canonical_fork_id;
         let previous_canonical_fork = match self.forks.get(&previous_canonical_fork_id) {
             Some(fork) => fork.clone(),
             None => {
-                ctx.try_log(|logger| {
-                    slog::error!(logger, "unable to retrieve previous bitcoin fork")
-                });
+                try_error!(
+                    ctx,
+                    "ForkScratchPad: unable to retrieve previous bitcoin fork"
+                );
                 return Ok(None);
             }
         };
@@ -99,24 +101,20 @@ impl ForkScratchPad {
 
         let fork_updated = match fork_updated.take() {
             Some(fork) => {
-                ctx.try_log(|logger| {
-                    slog::debug!(
-                        logger,
-                        "Bitcoin {} successfully appended to {}",
-                        header.block_identifier,
-                        fork
-                    )
-                });
+                try_info!(
+                    ctx,
+                    "ForkScratchPad: {} successfully appended to {}",
+                    header.block_identifier,
+                    fork
+                );
                 fork
             }
             None => {
-                ctx.try_log(|logger| {
-                    slog::error!(
-                        logger,
-                        "Unable to process Bitcoin {} - inboxed for later",
-                        header.block_identifier
-                    )
-                });
+                try_warn!(
+                    ctx,
+                    "ForkScratchPad: Unable to process Bitcoin {} - inboxed for later",
+                    header.block_identifier
+                );
                 self.orphans.insert(header.block_identifier.clone());
                 return Ok(None);
             }
@@ -156,7 +154,7 @@ impl ForkScratchPad {
 
         // Update orphans
         for orphan in orphans_to_untrack.into_iter() {
-            ctx.try_log(|logger| slog::info!(logger, "Dequeuing orphan {}", orphan));
+            try_info!(ctx, "ForkScratchPad: Dequeuing orphan {}", orphan);
             self.orphans.remove(orphan);
         }
 
@@ -164,25 +162,23 @@ impl ForkScratchPad {
         let mut canonical_fork_id = 0;
         let mut highest_height = 0;
         for (fork_id, fork) in self.forks.iter() {
-            ctx.try_log(|logger| slog::info!(logger, "Active fork: {} - {}", fork_id, fork));
+            try_info!(ctx, "ForkScratchPad: Active fork: {} - {}", fork_id, fork);
             if fork.get_length() >= highest_height {
                 highest_height = fork.get_length();
                 canonical_fork_id = *fork_id;
             }
         }
-        ctx.try_log(|logger| {
-            slog::info!(
-                logger,
-                "Active fork selected as canonical: {}",
-                canonical_fork_id
-            )
-        });
+        try_info!(
+            ctx,
+            "ForkScratchPad: Active fork selected as canonical: {}",
+            canonical_fork_id
+        );
 
         self.canonical_fork_id = canonical_fork_id;
         // Generate chain event from the previous and current canonical forks
         let canonical_fork = self.forks.get(&canonical_fork_id).unwrap().clone();
         if canonical_fork.eq(&previous_canonical_fork) {
-            ctx.try_log(|logger| slog::info!(logger, "Canonical fork unchanged"));
+            try_info!(ctx, "ForkScratchPad: Canonical fork unchanged");
             return Ok(None);
         }
 

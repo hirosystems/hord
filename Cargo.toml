@@ -12,9 +12,10 @@ resolver = "2"
 
 [workspace.dependencies]
 bitcoin = "0.31.2"
-tokio-postgres = "0.7.10"
 deadpool-postgres = "0.14.0"
+hiro-system-kit = "0.3.4"
 refinery = { version = "0.8", features = ["tokio-postgres"] }
+tokio-postgres = "0.7.10"
 
 [workspace.package]
 version = "2.2.5"
