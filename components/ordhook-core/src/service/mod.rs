@@ -339,9 +339,8 @@ pub async fn chainhook_sidecar_mutate_blocks(
     pg_pools: &PgConnectionPools,
     ctx: &Context,
 ) -> Result<(), String> {
-    let blocks_db_rw = open_blocks_db_with_retry(true, &config, ctx);
-
     if blocks_ids_to_rollback.len() > 0 {
+        let blocks_db_rw = open_blocks_db_with_retry(true, &config, ctx);
         for block_id in blocks_ids_to_rollback.iter() {
             blocks::delete_blocks_in_block_range(
                 block_id.index as u32,
@@ -369,17 +368,19 @@ pub async fn chainhook_sidecar_mutate_blocks(
                 ));
             }
         };
-        blocks::insert_entry_in_blocks(
-            cached_block.block.block_identifier.index as u32,
-            &block_bytes,
-            true,
-            &blocks_db_rw,
-            &ctx,
-        );
-        blocks_db_rw
-            .flush()
-            .map_err(|e| format!("error inserting block to rocksdb: {e}"))?;
-
+        {
+            let blocks_db_rw = open_blocks_db_with_retry(true, &config, ctx);
+            blocks::insert_entry_in_blocks(
+                cached_block.block.block_identifier.index as u32,
+                &block_bytes,
+                true,
+                &blocks_db_rw,
+                &ctx,
+            );
+            blocks_db_rw
+                .flush()
+                .map_err(|e| format!("error inserting block to rocksdb: {e}"))?;
+        }
         let mut cache_l1 = BTreeMap::new();
         let mut sequence_cursor = SequenceCursor::new();
         index_block(
