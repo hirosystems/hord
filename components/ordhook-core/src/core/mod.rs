@@ -10,7 +10,8 @@ use fxhash::{FxBuildHasher, FxHasher};
 use std::hash::BuildHasherDefault;
 use std::ops::Div;
 
-use chainhook_sdk::{types::BitcoinNetwork, utils::Context};
+use chainhook_sdk::utils::Context;
+use chainhook_types::BitcoinNetwork;
 
 use crate::{
     config::Config,
@@ -125,8 +126,7 @@ pub async fn should_sync_rocks_db(
     let blocks_db = open_blocks_db_with_retry(true, &config, &ctx);
     let last_compressed_block = find_last_block_inserted(&blocks_db) as u64;
     let ord_client = pg_pool_client(&pg_pools.ordinals).await?;
-    let last_indexed_block = match ordinals_pg::get_chain_tip_block_height(&ord_client).await?
-    {
+    let last_indexed_block = match ordinals_pg::get_chain_tip_block_height(&ord_client).await? {
         Some(last_indexed_block) => last_indexed_block,
         None => 0,
     };
@@ -148,8 +148,7 @@ pub async fn should_sync_ordinals_db(
     let mut start_block = find_last_block_inserted(&blocks_db) as u64;
 
     let ord_client = pg_pool_client(&pg_pools.ordinals).await?;
-    match ordinals_pg::get_chain_tip_block_height(&ord_client).await?
-    {
+    match ordinals_pg::get_chain_tip_block_height(&ord_client).await? {
         Some(height) => {
             if find_pinned_block_bytes_at_block_height(height as u32, 3, &blocks_db, &ctx).is_none()
             {

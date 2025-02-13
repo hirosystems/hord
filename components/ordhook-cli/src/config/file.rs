@@ -1,7 +1,4 @@
-use ordhook::chainhook_sdk::observer::DEFAULT_INGESTION_PORT;
-use ordhook::chainhook_sdk::types::{
-    BitcoinBlockSignaling, BitcoinNetwork, StacksNetwork, StacksNodeConfig,
-};
+use chainhook_types::{BitcoinBlockSignaling, BitcoinNetwork};
 use ordhook::config::{
     Config, IndexerConfig, LogConfig, MetaProtocolsConfig, ResourcesConfig, SnapshotConfig,
     SnapshotConfigDownloadUrls, StorageConfig, DEFAULT_BITCOIND_RPC_THREADS,
@@ -44,11 +41,11 @@ impl ConfigFile {
     }
 
     pub fn from_config_file(config_file: ConfigFile) -> Result<Config, String> {
-        let (_, bitcoin_network) = match config_file.network.mode.as_str() {
-            "devnet" => (StacksNetwork::Devnet, BitcoinNetwork::Regtest),
-            "testnet" => (StacksNetwork::Testnet, BitcoinNetwork::Testnet),
-            "mainnet" => (StacksNetwork::Mainnet, BitcoinNetwork::Mainnet),
-            "signet" => (StacksNetwork::Testnet, BitcoinNetwork::Signet),
+        let bitcoin_network = match config_file.network.mode.as_str() {
+            "devnet" => BitcoinNetwork::Regtest,
+            "testnet" => BitcoinNetwork::Testnet,
+            "mainnet" => BitcoinNetwork::Mainnet,
+            "signet" => BitcoinNetwork::Signet,
             _ => return Err("network.mode not supported".to_string()),
         };
 
@@ -126,9 +123,7 @@ impl ConfigFile {
                 bitcoind_rpc_password: config_file.network.bitcoind_rpc_password.to_string(),
                 bitcoin_block_signaling: match config_file.network.bitcoind_zmq_url {
                     Some(ref zmq_url) => BitcoinBlockSignaling::ZeroMQ(zmq_url.clone()),
-                    None => BitcoinBlockSignaling::Stacks(StacksNodeConfig::default_localhost(
-                        DEFAULT_INGESTION_PORT,
-                    )),
+                    None => BitcoinBlockSignaling::ZeroMQ("".to_string()),
                 },
                 bitcoin_network,
                 prometheus_monitoring_port: config_file.network.prometheus_monitoring_port,

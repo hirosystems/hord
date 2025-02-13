@@ -1,21 +1,20 @@
 use std::collections::HashSet;
 
-use chainhook_postgres::deadpool_postgres::Transaction;
-use chainhook_sdk::{
-    bitcoincore_rpc_json::bitcoin::{Address, Network, ScriptBuf},
-    types::{
-        BitcoinBlockData, BitcoinTransactionData, BlockIdentifier, OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination, OrdinalOperation
-    },
-    utils::Context,
+use bitcoin::{Address, Network, ScriptBuf};
+use chainhook_sdk::utils::Context;
+use chainhook_types::{
+    BitcoinBlockData, BitcoinTransactionData, BlockIdentifier, OrdinalInscriptionTransferData,
+    OrdinalInscriptionTransferDestination, OrdinalOperation,
 };
+use deadpool_postgres::Transaction;
 
 use crate::{
     core::{compute_next_satpoint_data, SatPosition},
     db::ordinals_pg,
-    ord::height::Height,
     try_info,
     utils::format_outpoint_to_watch,
 };
+use ord::height::Height;
 
 use super::inscription_sequencing::get_bitcoin_network;
 
@@ -51,7 +50,7 @@ pub async fn augment_block_with_transfers(
     ctx: &Context,
 ) -> Result<(), String> {
     let network = get_bitcoin_network(&block.metadata.network);
-    let coinbase_subsidy = Height(block.block_identifier.index).subsidy();
+    let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
     let coinbase_tx = &block.transactions[0].clone();
     let mut cumulated_fees = 0;
     for (tx_index, tx) in block.transactions.iter_mut().enumerate() {
@@ -261,9 +260,9 @@ pub async fn augment_transaction_with_ordinal_transfers(
 
 #[cfg(test)]
 mod test {
-    use chainhook_sdk::{
-        bitcoin::Network, types::OrdinalInscriptionTransferDestination, utils::Context,
-    };
+    use bitcoin::Network;
+    use chainhook_sdk::utils::Context;
+    use chainhook_types::OrdinalInscriptionTransferDestination;
 
     use crate::core::test_builders::{TestTransactionBuilder, TestTxInBuilder, TestTxOutBuilder};
 

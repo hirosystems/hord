@@ -1,16 +1,8 @@
 use crate::config::file::ConfigFile;
 use crate::config::generator::generate_config;
+use chainhook_sdk::utils::{BlockHeights, Context};
 use clap::{Parser, Subcommand};
 use hiro_system_kit;
-use ordhook::chainhook_sdk::chainhooks::types::{
-    BitcoinChainhookSpecification, HttpHook, InscriptionFeedData, OrdinalsMetaProtocol,
-};
-use ordhook::chainhook_sdk::chainhooks::types::{
-    BitcoinPredicateType, HookAction, OrdinalOperations,
-};
-use ordhook::chainhook_sdk::utils::BlockHeights;
-use ordhook::chainhook_sdk::utils::Context;
-use ordhook::config::Config;
 use ordhook::core::first_inscription_height;
 use ordhook::core::pipeline::bitcoind_download_blocks;
 use ordhook::core::pipeline::processors::block_archiving::start_block_archiving_processor;
@@ -19,17 +11,16 @@ use ordhook::db::blocks::{
     open_blocks_db_with_retry, open_readonly_blocks_db,
 };
 use ordhook::db::cursor::BlockBytesCursor;
-use ordhook::db::migrate_dbs;
+use ordhook::db::{migrate_dbs, reset_dbs};
 use ordhook::service::Service;
 use ordhook::try_info;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
 use std::{process, u64};
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(name = "ordhook", author, version, about, long_about = None)]
 struct Opts {
     #[clap(subcommand)]
     command: Command,
@@ -43,9 +34,29 @@ enum Command {
     /// Stream Bitcoin blocks and index ordinals inscriptions and transfers
     #[clap(subcommand)]
     Service(ServiceCommand),
-    /// Perform maintenance operations on local databases
+    /// Perform maintenance operations on local index
     #[clap(subcommand)]
-    Db(OrdhookDbCommand),
+    Index(IndexCommand),
+    /// Database operations
+    #[clap(subcommand)]
+    Database(DatabaseCommand),
+}
+
+#[derive(Subcommand, PartialEq, Clone, Debug)]
+enum DatabaseCommand {
+    /// Migrates database
+    #[clap(name = "migrate", bin_name = "migrate")]
+    Migrate(DatabaseMigrateCommand),
+    /// Resets database to an empty state
+    #[clap(name = "reset", bin_name = "reset")]
+    Reset(DatabaseMigrateCommand),
+}
+
+#[derive(Parser, PartialEq, Clone, Debug)]
+struct DatabaseMigrateCommand {
+    /// Load config file path
+    #[clap(long = "config-path")]
+    pub config_path: Option<String>,
 }
 
 #[derive(Subcommand, PartialEq, Clone, Debug)]
@@ -184,7 +195,7 @@ struct StartCommand {
 }
 
 #[derive(Subcommand, PartialEq, Clone, Debug)]
-enum OrdhookDbCommand {
+enum IndexCommand {
     /// Initialize a new ordhook db
     #[clap(name = "new", bin_name = "new")]
     New(SyncOrdhookDbCommand),
@@ -324,18 +335,18 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
                 println!("Created file Ordhook.toml");
             }
         },
-        Command::Db(OrdhookDbCommand::New(cmd)) => {
+        Command::Index(IndexCommand::New(cmd)) => {
             let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
             migrate_dbs(&config, ctx).await?;
             open_blocks_db_with_retry(true, &config, ctx);
         }
-        Command::Db(OrdhookDbCommand::Sync(cmd)) => {
+        Command::Index(IndexCommand::Sync(cmd)) => {
             let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
             migrate_dbs(&config, ctx).await?;
             let service = Service::new(&config, ctx);
             service.catch_up_to_bitcoin_chain_tip().await?;
         }
-        Command::Db(OrdhookDbCommand::Repair(subcmd)) => match subcmd {
+        Command::Index(IndexCommand::Repair(subcmd)) => match subcmd {
             RepairCommand::Blocks(cmd) => {
                 let mut config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
                 if let Some(network_threads) = cmd.network_threads {
@@ -363,13 +374,13 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
                         info!(ctx.expect_logger(), "--------------------");
                         info!(ctx.expect_logger(), "Block: {i}");
                         for tx in block.iter_tx() {
-                            info!(ctx.expect_logger(), "Tx: {}", ordhook::hex::encode(tx.txid));
+                            info!(ctx.expect_logger(), "Tx: {}", hex::encode(tx.txid));
                         }
                     }
                 }
             }
         },
-        Command::Db(OrdhookDbCommand::Check(cmd)) => {
+        Command::Index(IndexCommand::Check(cmd)) => {
             let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
             {
                 let blocks_db = open_readonly_blocks_db(&config, ctx)?;
@@ -379,7 +390,7 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
                 println!("{:?}", missing_blocks);
             }
         }
-        Command::Db(OrdhookDbCommand::Drop(cmd)) => {
+        Command::Index(IndexCommand::Drop(cmd)) => {
             let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
 
             let service = Service::new(&config, ctx);
@@ -401,55 +412,22 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
             service.rollback(&block_heights).await?;
             println!("{} blocks dropped", cmd.blocks);
         }
+        Command::Database(DatabaseCommand::Migrate(cmd)) => {
+            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            migrate_dbs(&config, ctx).await?;
+        }
+        Command::Database(DatabaseCommand::Reset(cmd)) => {
+            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            println!(
+                "WARNING: This operation will delete ALL index data and cannot be undone. Confirm? [Y/n]"
+            );
+            let mut buffer = String::new();
+            std::io::stdin().read_line(&mut buffer).unwrap();
+            if buffer.to_lowercase().starts_with('n') {
+                return Err("Aborted".to_string());
+            }
+            reset_dbs(&config, ctx).await?;
+        }
     }
     Ok(())
-}
-
-pub fn build_predicate_from_cli(
-    config: &Config,
-    post_to: &str,
-    block_heights: Option<&BlockHeights>,
-    start_block: Option<u64>,
-    auth_token: Option<String>,
-    is_streaming: bool,
-) -> Result<BitcoinChainhookSpecification, String> {
-    // Retrieve last block height known, and display it
-    let (start_block, end_block, blocks) = match (start_block, block_heights) {
-        (None, Some(BlockHeights::BlockRange(start, end))) => (Some(*start), Some(*end), None),
-        (None, Some(BlockHeights::Blocks(blocks))) => (None, None, Some(blocks.clone())),
-        (Some(start), None) => (Some(start), None, None),
-        _ => unreachable!(),
-    };
-    let mut meta_protocols: Option<HashSet<OrdinalsMetaProtocol>> = None;
-    if config.meta_protocols.brc20 {
-        let mut meta = HashSet::<OrdinalsMetaProtocol>::new();
-        meta.insert(OrdinalsMetaProtocol::All);
-        meta_protocols = Some(meta.clone());
-    }
-    let predicate = BitcoinChainhookSpecification {
-        network: config.network.bitcoin_network.clone(),
-        uuid: post_to.to_string(),
-        owner_uuid: None,
-        name: post_to.to_string(),
-        version: 1,
-        start_block,
-        end_block,
-        blocks,
-        expire_after_occurrence: None,
-        include_proof: false,
-        include_inputs: false,
-        include_outputs: false,
-        include_witness: false,
-        expired_at: None,
-        enabled: is_streaming,
-        predicate: BitcoinPredicateType::OrdinalsProtocol(OrdinalOperations::InscriptionFeed(
-            InscriptionFeedData { meta_protocols },
-        )),
-        action: HookAction::HttpPost(HttpHook {
-            url: post_to.to_string(),
-            authorization_header: format!("Bearer {}", auth_token.unwrap_or("".to_string())),
-        }),
-    };
-
-    Ok(predicate)
 }

@@ -1,4 +1,4 @@
-use chainhook_sdk::types::BitcoinNetwork;
+use chainhook_types::BitcoinNetwork;
 
 pub mod brc20_pg;
 pub mod cache;
@@ -53,6 +53,9 @@ pub fn decimals_str_amount_to_u128(amt: &String, decimals: u8) -> Result<u128, S
 /// Transform a BRC-20 amount which was stored in Postgres as a `u128` back to a `String` with decimals included.
 pub fn u128_amount_to_decimals_str(amount: u128, decimals: u8) -> String {
     let num_str = amount.to_string();
+    if decimals == 0 {
+        return num_str;
+    }
     let decimal_point = num_str.len() as i32 - decimals as i32;
     if decimal_point < 0 {
         let padding = "0".repeat(decimal_point.abs() as usize);

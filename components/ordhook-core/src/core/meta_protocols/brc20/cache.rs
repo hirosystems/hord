@@ -1,13 +1,14 @@
-use std::{collections::HashMap, num::NonZeroUsize};
-
-use chainhook_postgres::{
-    deadpool_postgres::GenericClient,
-    types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8},
+use std::{
+    collections::{HashMap, HashSet},
+    num::NonZeroUsize,
 };
-use chainhook_sdk::types::{
+
+use chainhook_postgres::types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8};
+use chainhook_types::{
     BlockIdentifier, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
     TransactionIdentifier,
 };
+use deadpool_postgres::GenericClient;
 use lru::LruCache;
 use maplit::hashmap;
 
@@ -146,30 +147,44 @@ impl Brc20MemoryCache {
         return Ok(None);
     }
 
-    pub async fn get_unsent_token_transfer<T: GenericClient>(
+    pub async fn get_unsent_token_transfers<T: GenericClient>(
         &mut self,
-        ordinal_number: u64,
+        ordinal_numbers: &Vec<&u64>,
         client: &T,
-    ) -> Result<Option<DbOperation>, String> {
-        // Use `get` instead of `contains` so we promote this value in the LRU.
-        if let Some(_) = self.ignored_inscriptions.get(&ordinal_number) {
-            return Ok(None);
-        }
-        if let Some(row) = self.unsent_transfers.get(&ordinal_number) {
-            return Ok(Some(row.clone()));
-        }
-        self.handle_cache_miss(client).await?;
-        match brc20_pg::get_unsent_token_transfer(ordinal_number, client).await? {
-            Some(row) => {
-                self.unsent_transfers.put(ordinal_number, row.clone());
-                return Ok(Some(row));
+    ) -> Result<Vec<DbOperation>, String> {
+        let mut results = vec![];
+        let mut cache_missed_ordinal_numbers = HashSet::new();
+        for ordinal_number in ordinal_numbers.iter() {
+            // Use `get` instead of `contains` so we promote this value in the LRU.
+            if let Some(_) = self.ignored_inscriptions.get(*ordinal_number) {
+                continue;
             }
-            None => {
-                // Inscription is not relevant for BRC20.
-                self.ignore_inscription(ordinal_number);
-                return Ok(None);
+            if let Some(row) = self.unsent_transfers.get(*ordinal_number) {
+                results.push(row.clone());
+            } else {
+                cache_missed_ordinal_numbers.insert(**ordinal_number);
             }
         }
+        if !cache_missed_ordinal_numbers.is_empty() {
+            // Some ordinal numbers were not in cache, check DB.
+            self.handle_cache_miss(client).await?;
+            let pending_transfers = brc20_pg::get_unsent_token_transfers(
+                &cache_missed_ordinal_numbers.iter().cloned().collect(),
+                client,
+            )
+            .await?;
+            for unsent_transfer in pending_transfers.into_iter() {
+                cache_missed_ordinal_numbers.remove(&unsent_transfer.ordinal_number.0);
+                self.unsent_transfers
+                    .put(unsent_transfer.ordinal_number.0, unsent_transfer.clone());
+                results.push(unsent_transfer);
+            }
+            // Ignore all irrelevant numbers.
+            for irrelevant_number in cache_missed_ordinal_numbers.iter() {
+                self.ignore_inscription(*irrelevant_number);
+            }
+        }
+        return Ok(results);
     }
 
     /// Marks an ordinal number as ignored so we don't bother computing its transfers for BRC20 purposes.
@@ -456,12 +471,12 @@ impl Brc20MemoryCache {
             return Ok(transfer.clone());
         }
         self.handle_cache_miss(client).await?;
-        let Some(transfer) = brc20_pg::get_unsent_token_transfer(ordinal_number, client).await?
-        else {
+        let transfers = brc20_pg::get_unsent_token_transfers(&vec![ordinal_number], client).await?;
+        let Some(transfer) = transfers.first() else {
             unreachable!("Invalid transfer ordinal number {}", ordinal_number)
         };
         self.unsent_transfers.put(ordinal_number, transfer.clone());
-        return Ok(transfer);
+        return Ok(transfer.clone());
     }
 
     async fn handle_cache_miss<T: GenericClient>(&mut self, client: &T) -> Result<(), String> {
@@ -474,7 +489,7 @@ impl Brc20MemoryCache {
 #[cfg(test)]
 mod test {
     use chainhook_postgres::{pg_begin, pg_pool_client};
-    use chainhook_sdk::types::{BitcoinNetwork, BlockIdentifier, TransactionIdentifier};
+    use chainhook_types::{BitcoinNetwork, BlockIdentifier, TransactionIdentifier};
     use test_case::test_case;
 
     use crate::{
@@ -487,7 +502,7 @@ mod test {
                 VerifiedBrc20TokenDeployData,
             },
         },
-        db::{pg_test_clear_db, pg_test_connection, pg_test_connection_pool},
+        db::{pg_reset_db, pg_test_connection, pg_test_connection_pool},
     };
 
     use super::Brc20MemoryCache;
@@ -641,7 +656,7 @@ mod test {
                     )))
             );
         }
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         Ok(())
     }
 
@@ -743,7 +758,7 @@ mod test {
                 )
                 .await?)
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         result
     }
 }

@@ -4,28 +4,26 @@ use std::{
     sync::Arc,
 };
 
-use chainhook_postgres::deadpool_postgres::Transaction;
-use chainhook_sdk::{
-    bitcoincore_rpc_json::bitcoin::Network,
-    types::{
-        BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
-        OrdinalInscriptionCurseType, OrdinalInscriptionTransferDestination, OrdinalOperation,
-        TransactionIdentifier,
-    },
-    utils::Context,
+use bitcoin::Network;
+use chainhook_sdk::utils::Context;
+use chainhook_types::{
+    BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
+    OrdinalInscriptionCurseType, OrdinalInscriptionTransferDestination, OrdinalOperation,
+    TransactionIdentifier,
 };
 use crossbeam_channel::unbounded;
 use dashmap::DashMap;
+use deadpool_postgres::Transaction;
 use fxhash::FxHasher;
 
 use crate::{
     config::Config,
     core::resolve_absolute_pointer,
     db::{self, cursor::TransactionBytesCursor, ordinals_pg},
-    ord::height::Height,
     try_debug, try_error, try_info,
     utils::format_inscription_id,
 };
+use ord::height::Height;
 
 use std::sync::mpsc::channel;
 
@@ -407,7 +405,7 @@ pub async fn augment_block_with_inscriptions(
     let mut sats_overflows = VecDeque::new();
 
     let network = get_bitcoin_network(&block.metadata.network);
-    let coinbase_subsidy = Height(block.block_identifier.index).subsidy();
+    let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
     let coinbase_tx = &block.transactions[0].clone();
     let mut cumulated_fees = 0u64;
 

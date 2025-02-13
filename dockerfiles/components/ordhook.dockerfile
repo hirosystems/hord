@@ -12,9 +12,7 @@ RUN rustup update 1.81 && rustup default 1.81
 RUN mkdir /out
 COPY ./Cargo.toml /src/Cargo.toml
 COPY ./Cargo.lock /src/Cargo.lock
-COPY ./components/chainhook-postgres /src/components/chainhook-postgres
-COPY ./components/ordhook-core /src/components/ordhook-core
-COPY ./components/ordhook-cli /src/components/ordhook-cli
+COPY ./components /src/components
 COPY ./migrations /src/migrations
 
 RUN cargo build --features release --release

@@ -1,5 +1,5 @@
-use chainhook_sdk::types::{BlockIdentifier, OrdinalInscriptionNumber, TransactionIdentifier};
 use chainhook_sdk::utils::Context;
+use chainhook_types::{BlockIdentifier, OrdinalInscriptionNumber, TransactionIdentifier};
 use dashmap::DashMap;
 use fxhash::FxHasher;
 use std::hash::BuildHasherDefault;
@@ -9,9 +9,9 @@ use crate::config::Config;
 use crate::db::blocks::find_pinned_block_bytes_at_block_height;
 
 use crate::db::cursor::{BlockBytesCursor, TransactionBytesCursor};
-use crate::ord::height::Height;
-use crate::ord::sat::Sat;
 use crate::try_error;
+use ord::height::Height;
+use ord::sat::Sat;
 
 #[derive(Clone, Debug)]
 pub struct TraversalResult {
@@ -25,7 +25,7 @@ pub struct TraversalResult {
 impl TraversalResult {
     pub fn get_ordinal_coinbase_height(&self) -> u64 {
         let sat = Sat(self.ordinal_number);
-        sat.height().n()
+        sat.height().n() as u64
     }
 
     pub fn get_ordinal_coinbase_offset(&self) -> u64 {
@@ -313,10 +313,8 @@ pub fn compute_satoshi_number(
 mod test {
     use std::{hash::BuildHasherDefault, sync::Arc};
 
-    use chainhook_sdk::{
-        types::{bitcoin::TxOut, BlockIdentifier, TransactionIdentifier},
-        utils::Context,
-    };
+    use chainhook_sdk::utils::Context;
+    use chainhook_types::{bitcoin::TxOut, BlockIdentifier, TransactionIdentifier};
     use dashmap::DashMap;
     use fxhash::FxHasher;
 

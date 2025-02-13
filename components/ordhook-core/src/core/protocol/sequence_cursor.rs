@@ -1,5 +1,6 @@
-use chainhook_postgres::deadpool_postgres::GenericClient;
-use chainhook_sdk::{bitcoin::Network, types::OrdinalInscriptionNumber};
+use bitcoin::Network;
+use chainhook_types::OrdinalInscriptionNumber;
+use deadpool_postgres::GenericClient;
 
 use crate::db::ordinals_pg;
 
@@ -142,8 +143,8 @@ impl SequenceCursor {
 
 #[cfg(test)]
 mod test {
+    use bitcoin::Network;
     use chainhook_postgres::{pg_begin, pg_pool_client};
-    use chainhook_sdk::bitcoin::Network;
 
     use test_case::test_case;
 
@@ -151,7 +152,7 @@ mod test {
         core::test_builders::{TestBlockBuilder, TestTransactionBuilder},
         db::{
             ordinals_pg::{self, insert_block},
-            pg_test_clear_db, pg_test_connection, pg_test_connection_pool,
+            pg_reset_db, pg_test_connection, pg_test_connection_pool,
         },
     };
 
@@ -200,7 +201,7 @@ mod test {
 
             (next.classic, next.jubilee)
         };
-        pg_test_clear_db(&mut pg_client).await;
+        pg_reset_db(&mut pg_client).await?;
         Ok(result)
     }
 }

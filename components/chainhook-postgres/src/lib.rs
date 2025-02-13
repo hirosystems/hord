@@ -1,11 +1,13 @@
 pub mod types;
 pub mod utils;
 
-pub use deadpool_postgres;
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod, Transaction};
-pub use tokio_postgres;
-
 use tokio_postgres::{Client, Config, NoTls, Row};
+
+/// Standard chunk size to use when we're batching multiple query inserts into a single SQL statement to save on DB round trips.
+/// This number is designed to not hit the postgres limit of 65536 query parameters in a single SQL statement, but results may
+/// vary depending on column counts. Queries should use other custom chunk sizes as needed.
+pub const BATCH_QUERY_CHUNK_SIZE: usize = 500;
 
 /// A Postgres configuration for a single database.
 #[derive(Clone, Debug)]

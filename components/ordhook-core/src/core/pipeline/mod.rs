@@ -1,8 +1,8 @@
 pub mod processors;
 
 use chainhook_sdk::observer::BitcoinConfig;
-use chainhook_sdk::types::BitcoinBlockData;
 use chainhook_sdk::utils::Context;
+use chainhook_types::BitcoinBlockData;
 use crossbeam_channel::bounded;
 use std::collections::{HashMap, VecDeque};
 use std::thread::{sleep, JoinHandle};
@@ -14,10 +14,9 @@ use crate::db::cursor::BlockBytesCursor;
 use crate::{try_debug, try_info};
 
 use chainhook_sdk::indexer::bitcoin::{
-    build_http_client, parse_downloaded_block, try_download_block_bytes_with_retry,
+    build_http_client, parse_downloaded_block, standardize_bitcoin_block,
+    try_download_block_bytes_with_retry,
 };
-
-use super::protocol::inscription_parsing::parse_inscriptions_and_standardize_block;
 
 pub enum PostProcessorCommand {
     ProcessBlocks(Vec<(u64, Vec<u8>)>, Vec<BitcoinBlockData>),
@@ -126,13 +125,13 @@ pub async fn bitcoind_download_blocks(
                         .expect("unable to compress block");
                     let block_height = raw_block_data.height as u64;
                     let block_data = if block_height >= start_sequencing_blocks_at_height {
-                        let block_data = parse_inscriptions_and_standardize_block(
+                        let block = standardize_bitcoin_block(
                             raw_block_data,
                             &moved_bitcoin_network,
                             &moved_ctx,
                         )
                         .expect("unable to deserialize block");
-                        Some(block_data)
+                        Some(block)
                     } else {
                         None
                     };
