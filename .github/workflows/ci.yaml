@@ -268,7 +268,9 @@ jobs:
           persist-credentials: false
 
       - name: Install semantic-release-monorepo
-        run: npm install -g semantic-release-monorepo@8.0.2
+        run: |
+          cd ./api/ordinals
+          npm install semantic-release-monorepo@8.0.2
 
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v4
