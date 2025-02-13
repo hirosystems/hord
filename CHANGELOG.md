@@ -1,3 +1,18 @@
+## [3.0.0-beta.6](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.5...v3.0.0-beta.6) (2025-02-13)
+
+
+### Features
+
+* migrate ordinals api to ordhook repo ([#389](https://github.com/hirosystems/ordhook/issues/389)) ([205b4c8](https://github.com/hirosystems/ordhook/commit/205b4c80bdc29fc10447c50546123d75fc829b77))
+
+
+### Bug Fixes
+
+* **brc20:** verify ordinal transfers in chunks instead of individually ([#394](https://github.com/hirosystems/ordhook/issues/394)) ([fe842e2](https://github.com/hirosystems/ordhook/commit/fe842e2e778729b635220719aad26c09684439e2))
+* clean up rocksdb connections during rollbacks ([#420](https://github.com/hirosystems/ordhook/issues/420)) ([216cd52](https://github.com/hirosystems/ordhook/commit/216cd52c0ea654e14601167a64cd7040903c08a2))
+* remove double parsing of inscriptions ([#421](https://github.com/hirosystems/ordhook/issues/421)) ([19c8a79](https://github.com/hirosystems/ordhook/commit/19c8a79cd2da64897c7862bae156bd37ef1f88f2))
+* upgrade `ord` dependencies and integrate `chainhook-sdk` code ([#397](https://github.com/hirosystems/ordhook/issues/397)) ([fcffa7e](https://github.com/hirosystems/ordhook/commit/fcffa7e5c1567fe6c8d6e19a5aa18ee67633938c)), closes [#412](https://github.com/hirosystems/ordhook/issues/412)
+
 ## [3.0.0-beta.5](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.4...v3.0.0-beta.5) (2025-01-29)
 
 
