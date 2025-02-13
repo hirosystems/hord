@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 COPY ./api/ordinals /app
-COPY ./.git /app/.git
+COPY .git /.git
 
 RUN apk add --no-cache --virtual .build-deps git
 RUN npm ci --no-audit && \
