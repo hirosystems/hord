@@ -1,6 +1,6 @@
 {
-  "name": "@hirosystems/ordinals-api",
-  "description": "A microservice that indexes Bitcoin Ordinal inscription data and exposes it via REST API endpoints.",
+  "name": "ordinals-api",
+  "description": "REST API that exposes indexed ordinals data",
   "version": "1.0.0",
   "main": "index.js",
   "author": "Hiro Systems PBC <engineering@hiro.so> (https://hiro.so)",
