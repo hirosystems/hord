@@ -8,7 +8,7 @@ use std::{
 use chainhook_postgres::{pg_begin, pg_pool_client};
 use chainhook_sdk::utils::Context;
 use chainhook_types::{BitcoinBlockData, TransactionIdentifier};
-use crossbeam_channel::{Sender, TryRecvError};
+use crossbeam_channel::TryRecvError;
 
 use dashmap::DashMap;
 use fxhash::FxHasher;
@@ -33,11 +33,7 @@ use crate::{
             sequence_cursor::SequenceCursor,
         },
     },
-    db::{
-        blocks::{self, open_blocks_db_with_retry},
-        cursor::TransactionBytesCursor,
-        ordinals_pg,
-    },
+    db::{blocks::open_blocks_db_with_retry, cursor::TransactionBytesCursor, ordinals_pg},
     service::PgConnectionPools,
     try_crit, try_debug, try_info,
     utils::monitoring::PrometheusMonitoring,
@@ -55,7 +51,6 @@ pub fn start_inscription_indexing_processor(
     config: &Config,
     pg_pools: &PgConnectionPools,
     ctx: &Context,
-    post_processor: Option<Sender<BitcoinBlockData>>,
     prometheus: &PrometheusMonitoring,
 ) -> PostProcessorController {
     let (commands_tx, commands_rx) = crossbeam_channel::bounded::<PostProcessorCommand>(2);
@@ -122,7 +117,6 @@ pub fn start_inscription_indexing_processor(
                         &mut sequence_cursor,
                         &cache_l2,
                         &mut brc20_cache,
-                        &post_processor,
                         &prometheus,
                         &config,
                         &pg_pools,
@@ -155,12 +149,11 @@ pub fn start_inscription_indexing_processor(
     }
 }
 
-pub async fn process_blocks(
+async fn process_blocks(
     next_blocks: &mut Vec<BitcoinBlockData>,
     sequence_cursor: &mut SequenceCursor,
     cache_l2: &Arc<DashMap<(u32, [u8; 8]), TransactionBytesCursor, BuildHasherDefault<FxHasher>>>,
     brc20_cache: &mut Option<Brc20MemoryCache>,
-    post_processor: &Option<Sender<BitcoinBlockData>>,
     prometheus: &PrometheusMonitoring,
     config: &Config,
     pg_pools: &PgConnectionPools,
@@ -172,14 +165,7 @@ pub async fn process_blocks(
     for _cursor in 0..next_blocks.len() {
         let mut block = next_blocks.remove(0);
 
-        // Invalidate and recompute cursor when crossing the jubilee height
-        let jubilee_height =
-            get_jubilee_block_height(&get_bitcoin_network(&block.metadata.network));
-        if block.block_identifier.index == jubilee_height {
-            sequence_cursor.reset();
-        }
-
-        process_block(
+        index_block(
             &mut block,
             &next_blocks,
             sequence_cursor,
@@ -193,15 +179,12 @@ pub async fn process_blocks(
         )
         .await?;
 
-        if let Some(post_processor_tx) = post_processor {
-            let _ = post_processor_tx.send(block.clone());
-        }
         updated_blocks.push(block);
     }
     Ok(updated_blocks)
 }
 
-pub async fn process_block(
+pub async fn index_block(
     block: &mut BitcoinBlockData,
     next_blocks: &Vec<BitcoinBlockData>,
     sequence_cursor: &mut SequenceCursor,
@@ -216,6 +199,13 @@ pub async fn process_block(
     let stopwatch = std::time::Instant::now();
     let block_height = block.block_identifier.index;
     try_info!(ctx, "Indexing block #{block_height}");
+
+    // Invalidate and recompute cursor when crossing the jubilee height
+    if block.block_identifier.index
+        == get_jubilee_block_height(&get_bitcoin_network(&block.metadata.network))
+    {
+        sequence_cursor.reset();
+    }
 
     {
         let mut ord_client = pg_pool_client(&pg_pools.ordinals).await?;
@@ -233,16 +223,11 @@ pub async fn process_block(
             config,
             ctx,
         )?;
-        let inner_ctx = if config.logs.ordinals_internals {
-            ctx.clone()
-        } else {
-            Context::empty()
-        };
         if has_inscription_reveals {
-            augment_block_with_inscriptions(block, sequence_cursor, cache_l1, &ord_tx, &inner_ctx)
+            augment_block_with_inscriptions(block, sequence_cursor, cache_l1, &ord_tx, ctx)
                 .await?;
         }
-        augment_block_with_transfers(block, &ord_tx, &inner_ctx).await?;
+        augment_block_with_transfers(block, &ord_tx, ctx).await?;
 
         // Write data
         ordinals_pg::insert_block(block, &ord_tx).await?;
@@ -294,15 +279,6 @@ pub async fn rollback_block(
     ctx: &Context,
 ) -> Result<(), String> {
     try_info!(ctx, "Rolling back block #{block_height}");
-    // Drop from blocks DB.
-    let blocks_db = open_blocks_db_with_retry(true, &config, ctx);
-    blocks::delete_blocks_in_block_range(
-        block_height as u32,
-        block_height as u32,
-        &blocks_db,
-        &ctx,
-    );
-    // Drop from postgres.
     {
         let mut ord_client = pg_pool_client(&pg_pools.ordinals).await?;
         let ord_tx = pg_begin(&mut ord_client).await?;
