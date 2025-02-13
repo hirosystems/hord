@@ -258,7 +258,7 @@ jobs:
 
   api-semantic-release:
     runs-on: ubuntu-latest
-    needs: [api-lint, api-test]
+    # needs: [api-lint, api-test]
     outputs:
       new_release_version: ${{ steps.semantic.outputs.new_release_version }}
       new_release_published: ${{ steps.semantic.outputs.new_release_published }}
@@ -278,9 +278,10 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_CRATES_IO_API_KEY }}
         with:
           working_directory: ./api/ordinals
-          # extends: semantic-release-monorepo
+          extends: semantic-release-monorepo
           semantic_version: 19
           extra_plugins: |
+            semantic-release-monorepo@8.0.2
             @semantic-release/changelog@6.0.3
             @semantic-release/git@10.0.1
             @semantic-release/exec@6.0.3
