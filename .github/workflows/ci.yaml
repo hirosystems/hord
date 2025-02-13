@@ -162,10 +162,9 @@ jobs:
           cargo tarpaulin --skip-clean --out lcov -- --test-threads=1
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: hirosystems/ordhook
 
       - name: Print integration environment logs
         run: cat docker-compose-logs.txt
@@ -286,7 +285,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            hirosystems/${{ matrix.suite }}
+            hirosystems/${{ matrix.suite }}-api
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -302,8 +301,8 @@ jobs:
       - name: Build/Tag/Push Image
         uses: docker/build-push-action@v5
         with:
-          context: ./api/${{ matrix.suite }}
-          file: ./api/${{ matrix.suite }}/Dockerfile
+          context: .
+          file: ./dockerfiles/components/${{ matrix.suite }}-api.dockerfile
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Only push if (there's a new release on main branch, or if building a non-main branch) and (Only run on non-PR events or only PRs that aren't from forks)

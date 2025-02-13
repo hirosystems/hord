@@ -1,10 +1,11 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
-COPY . .
+COPY ./api/ordinals /app
+COPY .git /.git
 
 RUN apk add --no-cache --virtual .build-deps git
-RUN npm ci && \
+RUN npm ci --no-audit && \
     npm run build && \
     npm run generate:git-info && \
     npm prune --production
