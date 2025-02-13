@@ -162,10 +162,9 @@ jobs:
           cargo tarpaulin --skip-clean --out lcov -- --test-threads=1
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: hirosystems/ordhook
 
       - name: Print integration environment logs
         run: cat docker-compose-logs.txt
