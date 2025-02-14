@@ -23,7 +23,7 @@ use crate::{
     try_debug, try_error, try_info,
     utils::format_inscription_id,
 };
-use ord::{height::Height, rarity::Rarity, sat::Sat};
+use ord::{charm::Charm, height::Height, sat::Sat};
 
 use std::sync::mpsc::channel;
 
@@ -575,35 +575,30 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
                 // spent to fees are numbered as if they appear last in the block in which they
                 // are revealed.
                 sats_overflows.push_back((tx_index, op_index));
-                inscription.charms.unbound = true;
+                Charm::Unbound.set(&mut inscription.charms);
                 continue;
             }
             OrdinalInscriptionTransferDestination::Burnt(_) => {
-                inscription.charms.burned = true;
+                Charm::Burned.set(&mut inscription.charms);
             }
             OrdinalInscriptionTransferDestination::Transferred(address) => {
                 inscription.inscription_output_value = output_value.unwrap_or(0);
                 inscription.inscriber_address = Some(address);
-                inscription.charms.lost = output_value.is_none();
+                if output_value.is_none() {
+                    Charm::Lost.set(&mut inscription.charms);
+                }
             }
         };
 
-        let sat = Sat(traversal.ordinal_number);
-        let sat_rarity = sat.rarity();
-        let jubilant = block_identifier.index >= get_jubilee_block_height(network);
-        inscription.charms.cursed = is_cursed && !jubilant;
-        inscription.charms.vindicated = is_cursed && jubilant;
-        inscription.charms.coin = sat.coin();
-        inscription.charms.nineball = sat.nineball();
-        inscription.charms.palindrome = sat.palindrome();
-        inscription.charms.epic = sat_rarity == Rarity::Epic;
-        inscription.charms.legendary = sat_rarity == Rarity::Legendary;
-        inscription.charms.mythic = sat_rarity == Rarity::Mythic;
-        inscription.charms.rare = sat_rarity == Rarity::Rare;
-        inscription.charms.uncommon = sat_rarity == Rarity::Uncommon;
-
-        // The reinscriptions_data needs to be augmented as we go, to handle transaction chaining.
-        if !is_cursed {
+        inscription.charms |= Sat(traversal.ordinal_number).charms();
+        if is_cursed {
+            if block_identifier.index >= get_jubilee_block_height(network) {
+                Charm::Vindicated.set(&mut inscription.charms);
+            } else {
+                Charm::Cursed.set(&mut inscription.charms);
+            }
+        } else {
+            // The reinscriptions_data needs to be augmented as we go, to handle transaction chaining.
             reinscriptions_data.insert(traversal.ordinal_number, traversal.get_inscription_id());
         }
 

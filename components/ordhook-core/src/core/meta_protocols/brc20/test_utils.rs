@@ -1,7 +1,7 @@
 use chainhook_sdk::utils::Context;
 use chainhook_types::{
-    OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData,
-    OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination,
+    OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
+    OrdinalInscriptionTransferDestination,
 };
 
 pub fn get_test_ctx() -> Context {
@@ -88,7 +88,7 @@ impl Brc20RevealBuilder {
             satpoint_post_inscription:
                 "9bb2314d666ae0b1db8161cb373fcc1381681f71445c4e0335aa80ea9c37fcdd:0:0".to_string(),
             curse_type: None,
-            charms: OrdinalInscriptionCharms::none(),
+            charms: 0,
         }
     }
 }

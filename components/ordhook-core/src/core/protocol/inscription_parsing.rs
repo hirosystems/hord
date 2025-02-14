@@ -3,8 +3,8 @@ use bitcoin::Witness;
 use chainhook_sdk::utils::Context;
 use chainhook_types::{
     BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
-    OrdinalInscriptionCharms, OrdinalInscriptionCurseType, OrdinalInscriptionNumber,
-    OrdinalInscriptionRevealData, OrdinalInscriptionTransferData, OrdinalOperation,
+    OrdinalInscriptionCurseType, OrdinalInscriptionNumber, OrdinalInscriptionRevealData,
+    OrdinalInscriptionTransferData, OrdinalOperation,
 };
 use serde_json::json;
 use std::collections::HashMap;
@@ -102,7 +102,7 @@ pub fn parse_inscriptions_from_witness(
             transfers_pre_inscription: 0,
             satpoint_post_inscription: format!(""),
             curse_type,
-            charms: OrdinalInscriptionCharms::none(),
+            charms: 0,
         };
         inscriptions.push((reveal_data, envelope.payload));
     }
