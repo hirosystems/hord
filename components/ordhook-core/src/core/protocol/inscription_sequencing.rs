@@ -23,7 +23,7 @@ use crate::{
     try_debug, try_error, try_info,
     utils::format_inscription_id,
 };
-use ord::height::Height;
+use ord::{height::Height, rarity::Rarity, sat::Sat};
 
 use std::sync::mpsc::channel;
 
@@ -455,12 +455,10 @@ pub async fn augment_block_with_inscriptions(
     Ok(())
 }
 
-/// Given a `BitcoinTransactionData` that have been augmented with the functions `parse_inscriptions_in_raw_tx` or
-/// `parse_inscriptions_in_standardized_tx`,  mutate the ordinals drafted informations with actual, consensus data, by
-/// using informations from `inscription_data` and `reinscription_data`.
+/// Given a `BitcoinTransactionData` that have been augmented with `parse_inscriptions_in_standardized_tx`, mutate the ordinals
+/// drafted informations with actual, consensus data, by using informations from `inscription_data` and `reinscription_data`.
 ///
-/// Transactions are not fully correct from a consensus point of view state transient state after the execution of this
-/// function.
+/// Transactions are not fully correct from a consensus point of view state transient state after the execution of this function.
 async fn augment_transaction_with_ordinals_inscriptions_data(
     tx: &mut BitcoinTransactionData,
     tx_index: usize,
@@ -506,12 +504,10 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
             match inscriptions_data.get(&(transaction_identifier, input_index, relative_offset)) {
                 Some(traversal) => traversal,
                 None => {
-                    let err_msg = format!(
+                    return Err(format!(
                         "Unable to retrieve backward traversal result for inscription {}",
                         tx.transaction_identifier.hash
-                    );
-                    try_error!(ctx, "{}", err_msg);
-                    std::process::exit(1);
+                    ));
                 }
             };
 
@@ -579,14 +575,32 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
                 // spent to fees are numbered as if they appear last in the block in which they
                 // are revealed.
                 sats_overflows.push_back((tx_index, op_index));
+                inscription.charms.unbound = true;
                 continue;
             }
-            OrdinalInscriptionTransferDestination::Burnt(_) => {}
+            OrdinalInscriptionTransferDestination::Burnt(_) => {
+                inscription.charms.burned = true;
+            }
             OrdinalInscriptionTransferDestination::Transferred(address) => {
                 inscription.inscription_output_value = output_value.unwrap_or(0);
                 inscription.inscriber_address = Some(address);
+                inscription.charms.lost = output_value.is_none();
             }
         };
+
+        let sat = Sat(traversal.ordinal_number);
+        let sat_rarity = sat.rarity();
+        let jubilant = block_identifier.index >= get_jubilee_block_height(network);
+        inscription.charms.cursed = is_cursed && !jubilant;
+        inscription.charms.vindicated = is_cursed && jubilant;
+        inscription.charms.coin = sat.coin();
+        inscription.charms.nineball = sat.nineball();
+        inscription.charms.palindrome = sat.palindrome();
+        inscription.charms.epic = sat_rarity == Rarity::Epic;
+        inscription.charms.legendary = sat_rarity == Rarity::Legendary;
+        inscription.charms.mythic = sat_rarity == Rarity::Mythic;
+        inscription.charms.rare = sat_rarity == Rarity::Rare;
+        inscription.charms.uncommon = sat_rarity == Rarity::Uncommon;
 
         // The reinscriptions_data needs to be augmented as we go, to handle transaction chaining.
         if !is_cursed {
