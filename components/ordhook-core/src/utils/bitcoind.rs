@@ -1,7 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use chainhook_sdk::{
-    bitcoincore_rpc::{Auth, Client, RpcApi},
+    corepc_client::client_sync::{Auth, v28::Client},
     utils::Context,
 };
 
@@ -13,7 +13,7 @@ fn bitcoind_get_client(config: &Config, ctx: &Context) -> Client {
             config.network.bitcoind_rpc_username.clone(),
             config.network.bitcoind_rpc_password.clone(),
         );
-        match Client::new(&config.network.bitcoind_rpc_url, auth) {
+        match Client::new_with_auth(&config.network.bitcoind_rpc_url, auth) {
             Ok(con) => {
                 return con;
             }
@@ -31,7 +31,7 @@ pub fn bitcoind_get_block_height(config: &Config, ctx: &Context) -> u64 {
     loop {
         match bitcoin_rpc.get_blockchain_info() {
             Ok(result) => {
-                return result.blocks;
+                return result.blocks.try_into().expect("Block height should be positive");
             }
             Err(e) => {
                 try_error!(
@@ -52,7 +52,7 @@ pub fn bitcoind_wait_for_chain_tip(config: &Config, ctx: &Context) {
     loop {
         match bitcoin_rpc.get_blockchain_info() {
             Ok(result) => {
-                if result.initial_block_download == false && result.blocks == result.headers {
+                if !result.initial_block_download && result.blocks == result.headers {
                     confirmations += 1;
                     // Wait for 10 confirmations before declaring node is at chain tip, just in case it's still connecting to
                     // peers.

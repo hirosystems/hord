@@ -3,18 +3,51 @@ use std::time::Duration;
 use crate::observer::BitcoinConfig;
 use crate::try_debug;
 use crate::utils::Context;
-use bitcoincore_rpc::bitcoin::hashes::Hash;
-use bitcoincore_rpc::bitcoin::{self, Amount, BlockHash};
-use bitcoincore_rpc::jsonrpc::error::RpcError;
-use bitcoincore_rpc_json::GetRawTransactionResultVoutScriptPubKey;
 use chainhook_types::bitcoin::{OutPoint, TxIn, TxOut};
 use chainhook_types::{
     BitcoinBlockData, BitcoinBlockMetadata, BitcoinNetwork, BitcoinTransactionData,
     BitcoinTransactionMetadata, BlockHeader, BlockIdentifier, TransactionIdentifier,
 };
+use corepc_client::bitcoin::address::{Address, NetworkUnchecked};
+use corepc_client::bitcoin::hashes::Hash;
+use corepc_client::bitcoin::{self, Amount, BlockHash};
 use hiro_system_kit::slog;
+use jsonrpc::error::RpcError;
 use reqwest::Client as HttpClient;
 use serde::Deserialize;
+
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetRawTransactionResultVoutScriptPubKey {
+    pub asm: String,
+    #[serde(with = "crate::serde_hex")]
+    pub hex: Vec<u8>,
+    pub req_sigs: Option<usize>,
+    #[serde(rename = "type")]
+    pub type_: Option<ScriptPubkeyType>,
+    // Deprecated in Bitcoin Core 22
+    #[serde(default)]
+    pub addresses: Vec<Address<NetworkUnchecked>>,
+    // Added in Bitcoin Core 22
+    #[serde(default)]
+    pub address: Option<Address<NetworkUnchecked>>,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ScriptPubkeyType {
+    Nonstandard,
+    Pubkey,
+    PubkeyHash,
+    ScriptHash,
+    MultiSig,
+    NullData,
+    Witness_v0_KeyHash,
+    Witness_v0_ScriptHash,
+    Witness_v1_Taproot,
+    Witness_Unknown,
+}
 
 #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -219,7 +252,7 @@ pub async fn retrieve_block_hash(
         .send()
         .await
         .map_err(|e| format!("unable to send request ({})", e))?
-        .json::<bitcoincore_rpc::jsonrpc::Response>()
+        .json::<jsonrpc::Response>()
         .await
         .map_err(|e| format!("unable to parse response ({})", e))?
         .result::<String>()
@@ -318,7 +351,7 @@ pub async fn download_block(
 pub fn parse_downloaded_block(
     downloaded_block: Vec<u8>,
 ) -> Result<BitcoinBlockFullBreakdown, String> {
-    let block = serde_json::from_slice::<bitcoincore_rpc::jsonrpc::Response>(&downloaded_block[..])
+    let block = serde_json::from_slice::<jsonrpc::Response>(&downloaded_block[..])
         .map_err(|e| format!("unable to parse jsonrpc payload ({})", e))?
         .result::<BitcoinBlockFullBreakdown>()
         .map_err(|e| format!("unable to parse block ({})", e))?;
@@ -343,7 +376,12 @@ pub fn standardize_bitcoin_block(
     let mut transactions = vec![];
     let block_height = block.height as u64;
 
-    try_debug!(ctx, "Standardizing Bitcoin block #{} {}", block.height, block.hash);
+    try_debug!(
+        ctx,
+        "Standardizing Bitcoin block #{} {}",
+        block.height,
+        block.hash
+    );
 
     for (tx_index, mut tx) in block.tx.into_iter().enumerate() {
         let txid = tx.txid.to_string();
