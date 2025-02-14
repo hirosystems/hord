@@ -4,7 +4,7 @@ use chainhook_sdk::utils::Context;
 use chainhook_types::{
     BitcoinBlockData, BitcoinNetwork, BitcoinTransactionData, BlockIdentifier,
     OrdinalInscriptionCurseType, OrdinalInscriptionNumber, OrdinalInscriptionRevealData,
-    OrdinalInscriptionTransferData, OrdinalOperation,
+    OrdinalOperation,
 };
 use serde_json::json;
 use std::collections::HashMap;
@@ -169,90 +169,19 @@ pub fn parse_inscriptions_in_standardized_block(
     }
 }
 
-pub fn get_inscriptions_revealed_in_block(
-    block: &BitcoinBlockData,
-) -> Vec<&OrdinalInscriptionRevealData> {
-    let mut ops = vec![];
-    for tx in block.transactions.iter() {
-        for op in tx.metadata.ordinal_operations.iter() {
-            if let OrdinalOperation::InscriptionRevealed(op) = op {
-                ops.push(op);
-            }
-        }
-    }
-    ops
-}
-
-pub fn get_inscriptions_transferred_in_block(
-    block: &BitcoinBlockData,
-) -> Vec<&OrdinalInscriptionTransferData> {
-    let mut ops = vec![];
-    for tx in block.transactions.iter() {
-        for op in tx.metadata.ordinal_operations.iter() {
-            if let OrdinalOperation::InscriptionTransferred(op) = op {
-                ops.push(op);
-            }
-        }
-    }
-    ops
-}
-
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
 
     use chainhook_sdk::utils::Context;
-    use chainhook_types::{
-        BitcoinBlockData, BitcoinTransactionData, OrdinalInscriptionTransferData,
-        OrdinalInscriptionTransferDestination, OrdinalOperation,
-    };
-    use test_case::test_case;
+    use chainhook_types::OrdinalOperation;
 
     use crate::{
         config::Config,
         core::test_builders::{TestBlockBuilder, TestTransactionBuilder, TestTxInBuilder},
     };
 
-    use super::{
-        get_inscriptions_revealed_in_block, get_inscriptions_transferred_in_block,
-        parse_inscriptions_in_standardized_block,
-    };
-
-    pub fn new_test_transfer_tx_with_operation() -> BitcoinTransactionData {
-        TestTransactionBuilder::new()
-            .ordinal_operations(vec![OrdinalOperation::InscriptionTransferred(
-                OrdinalInscriptionTransferData {
-                    ordinal_number: 300144140535834,
-                    destination: OrdinalInscriptionTransferDestination::Transferred(
-                        "bc1pcwway0ne322s0lrc5e905f3chuclvnyy3z6wn86azkgmgcprf3tqvyy7ws"
-                            .to_string(),
-                    ),
-                    satpoint_pre_transfer:
-                        "ab2683db34e335c89a5c1d634e6c5bd8d8bca8ded281be84f71f921c9e8783b2:0:0"
-                            .to_string(),
-                    satpoint_post_transfer:
-                        "42fa098abab8d5cca1c303a97bd0404cf8e9b8faaab6dd228a309e66daff8fae:1:0"
-                            .to_string(),
-                    post_transfer_output_value: Some(546),
-                    tx_index: 54,
-                },
-            )])
-            .build()
-    }
-
-    #[test_case(&TestBlockBuilder::new().build() => 0; "with empty block")]
-    #[test_case(&TestBlockBuilder::new().transactions(vec![TestTransactionBuilder::new_with_operation().build()]).build() => 1; "with reveal transaction")]
-    #[test_case(&TestBlockBuilder::new().transactions(vec![new_test_transfer_tx_with_operation()]).build() => 0; "with transfer transaction")]
-    fn gets_reveals_in_block(block: &BitcoinBlockData) -> usize {
-        get_inscriptions_revealed_in_block(block).len()
-    }
-
-    #[test_case(&TestBlockBuilder::new().build() => 0; "with empty block")]
-    #[test_case(&TestBlockBuilder::new().transactions(vec![TestTransactionBuilder::new_with_operation().build()]).build() => 0; "with reveal transaction")]
-    #[test_case(&TestBlockBuilder::new().transactions(vec![new_test_transfer_tx_with_operation()]).build() => 1; "with transfer transaction")]
-    fn gets_transfers_in_block(block: &BitcoinBlockData) -> usize {
-        get_inscriptions_transferred_in_block(block).len()
-    }
+    use super::parse_inscriptions_in_standardized_block;
 
     #[test]
     fn parses_inscriptions_in_block() {

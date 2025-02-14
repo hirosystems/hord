@@ -474,17 +474,20 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
     db_tx: &Transaction<'_>,
     ctx: &Context,
 ) -> Result<bool, String> {
-    let inputs = tx
+    if tx.metadata.ordinal_operations.is_empty() {
+        return Ok(false);
+    }
+
+    let tx_input_values = tx
         .metadata
         .inputs
         .iter()
         .map(|i| i.previous_output.value)
         .collect::<Vec<u64>>();
-
-    let any_event = tx.metadata.ordinal_operations.is_empty() == false;
     let mut mutated_operations = vec![];
     mutated_operations.append(&mut tx.metadata.ordinal_operations);
     let mut inscription_subindex = 0;
+
     for (op_index, op) in mutated_operations.iter_mut().enumerate() {
         let (mut is_cursed, inscription) = match op {
             OrdinalOperation::InscriptionRevealed(inscription) => {
@@ -494,7 +497,7 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
         };
 
         let (input_index, relative_offset) = match inscription.inscription_pointer {
-            Some(pointer) => resolve_absolute_pointer(&inputs, pointer),
+            Some(pointer) => resolve_absolute_pointer(&tx_input_values, pointer),
             None => (inscription.inscription_input_index, 0),
         };
 
@@ -616,5 +619,5 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
         .ordinal_operations
         .append(&mut mutated_operations);
 
-    Ok(any_event)
+    Ok(true)
 }
