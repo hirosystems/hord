@@ -484,11 +484,11 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
         .iter()
         .map(|i| i.previous_output.value)
         .collect::<Vec<u64>>();
-    let mut mutated_operations = vec![];
-    mutated_operations.append(&mut tx.metadata.ordinal_operations);
-    let mut inscription_subindex = 0;
+    let mut mut_operations = vec![];
+    mut_operations.append(&mut tx.metadata.ordinal_operations);
 
-    for (op_index, op) in mutated_operations.iter_mut().enumerate() {
+    let mut inscription_subindex = 0;
+    for (op_index, op) in mut_operations.iter_mut().enumerate() {
         let (mut is_cursed, inscription) = match op {
             OrdinalOperation::InscriptionRevealed(inscription) => {
                 (inscription.curse_type.as_ref().is_some(), inscription)
@@ -514,29 +514,28 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
                 }
             };
 
-        // Do we need to curse the inscription?
+        // Do we need to curse the inscription? Is this inscription re-inscribing an existing blessed inscription?
         let mut inscription_number = sequence_cursor
             .pick_next(is_cursed, block_identifier.index, network, db_tx)
             .await?;
         let mut curse_type_override = None;
         if !is_cursed {
-            // Is this inscription re-inscribing an existing blessed inscription?
             if let Some(exisiting_inscription_id) =
                 reinscriptions_data.get(&traversal.ordinal_number)
             {
                 try_info!(
                     ctx,
-                    "Satoshi #{} was inscribed with blessed inscription {}, cursing inscription {}",
+                    "Satoshi {} was previously inscribed with blessed inscription {}, cursing inscription {}",
                     traversal.ordinal_number,
                     exisiting_inscription_id,
                     traversal.get_inscription_id(),
                 );
-
                 is_cursed = true;
                 inscription_number = sequence_cursor
                     .pick_next(is_cursed, block_identifier.index, network, db_tx)
                     .await?;
-                curse_type_override = Some(OrdinalInscriptionCurseType::Reinscription)
+                curse_type_override = Some(OrdinalInscriptionCurseType::Reinscription);
+                Charm::Reinscription.set(&mut inscription.charms);
             }
         };
 
@@ -563,8 +562,6 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
             cumulated_fees,
             ctx,
         );
-
-        // Compute satpoint_post_inscription
         inscription.satpoint_post_inscription = satpoint_post_transfer;
         inscription_subindex += 1;
 
@@ -617,7 +614,7 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
     }
     tx.metadata
         .ordinal_operations
-        .append(&mut mutated_operations);
+        .append(&mut mut_operations);
 
     Ok(true)
 }
