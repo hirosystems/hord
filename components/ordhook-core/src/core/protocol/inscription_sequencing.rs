@@ -391,26 +391,25 @@ pub fn get_bitcoin_network(network: &BitcoinNetwork) -> Network {
 /// Given a `BitcoinBlockData` that have been augmented with the functions `parse_inscriptions_in_raw_tx`,
 /// `parse_inscriptions_in_standardized_tx` or `parse_inscriptions_and_standardize_block`, mutate the ordinals drafted
 /// informations with actual, consensus data.
-pub async fn augment_block_with_inscriptions(
+pub async fn update_block_inscriptions_with_consensus_sequence_data(
     block: &mut BitcoinBlockData,
     sequence_cursor: &mut SequenceCursor,
     inscriptions_data: &mut BTreeMap<(TransactionIdentifier, usize, u64), TraversalResult>,
     db_tx: &Transaction<'_>,
     ctx: &Context,
 ) -> Result<(), String> {
-    // Handle re-inscriptions
+    // Check if we've previously inscribed over any satoshi being inscribed to in this new block. This would be a reinscription.
     let mut reinscriptions_data =
         ordinals_pg::get_reinscriptions_for_block(inscriptions_data, db_tx).await?;
-    // Handle sat oveflows
-    let mut sats_overflows = VecDeque::new();
-
+    // Keep a reference of inscribed satoshis that fall outside of this block's total sats. These would be unbound inscriptions.
+    let mut sat_overflows = VecDeque::new();
     let network = get_bitcoin_network(&block.metadata.network);
     let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
     let coinbase_tx = &block.transactions[0].clone();
     let mut cumulated_fees = 0u64;
 
     for (tx_index, tx) in block.transactions.iter_mut().enumerate() {
-        augment_transaction_with_ordinals_inscriptions_data(
+        update_tx_inscriptions_with_consensus_sequence_data(
             tx,
             tx_index,
             &block.block_identifier,
@@ -420,7 +419,7 @@ pub async fn augment_block_with_inscriptions(
             coinbase_tx,
             coinbase_subsidy,
             &mut cumulated_fees,
-            &mut sats_overflows,
+            &mut sat_overflows,
             &mut reinscriptions_data,
             db_tx,
             ctx,
@@ -428,8 +427,7 @@ pub async fn augment_block_with_inscriptions(
         .await?;
     }
 
-    // Handle sats overflow
-    while let Some((tx_index, op_index)) = sats_overflows.pop_front() {
+    while let Some((tx_index, op_index)) = sat_overflows.pop_front() {
         let OrdinalOperation::InscriptionRevealed(ref mut inscription_data) =
             block.transactions[tx_index].metadata.ordinal_operations[op_index]
         else {
@@ -459,7 +457,7 @@ pub async fn augment_block_with_inscriptions(
 /// drafted informations with actual, consensus data, by using informations from `inscription_data` and `reinscription_data`.
 ///
 /// Transactions are not fully correct from a consensus point of view state transient state after the execution of this function.
-async fn augment_transaction_with_ordinals_inscriptions_data(
+async fn update_tx_inscriptions_with_consensus_sequence_data(
     tx: &mut BitcoinTransactionData,
     tx_index: usize,
     block_identifier: &BlockIdentifier,
@@ -508,7 +506,7 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
                 Some(traversal) => traversal,
                 None => {
                     return Err(format!(
-                        "Unable to retrieve backward traversal result for inscription {}",
+                        "Unable to retrieve backward traversal result for inscription in tx {}",
                         tx.transaction_identifier.hash
                     ));
                 }
@@ -612,9 +610,116 @@ async fn augment_transaction_with_ordinals_inscriptions_data(
         );
         sequence_cursor.increment(is_cursed, db_tx).await?;
     }
-    tx.metadata
-        .ordinal_operations
-        .append(&mut mut_operations);
+    tx.metadata.ordinal_operations.append(&mut mut_operations);
 
     Ok(true)
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+
+    use chainhook_postgres::{pg_begin, pg_pool_client};
+    use chainhook_sdk::utils::Context;
+    use chainhook_types::{
+        OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalOperation,
+        TransactionIdentifier,
+    };
+
+    use crate::{
+        core::{
+            protocol::{satoshi_numbering::TraversalResult, sequence_cursor::SequenceCursor},
+            test_builders::{TestBlockBuilder, TestTransactionBuilder},
+        },
+        db::{ordinals_pg, pg_reset_db, pg_test_connection, pg_test_connection_pool},
+    };
+
+    use super::update_block_inscriptions_with_consensus_sequence_data;
+
+    #[tokio::test]
+    async fn sequence_inscriptions_in_block() -> Result<(), String> {
+        let ctx = Context::empty();
+        let mut sequence_cursor = SequenceCursor::new();
+        let mut cache_l1 = BTreeMap::new();
+        let tx_id = TransactionIdentifier {
+            hash: "b4722ad74e7092a194e367f2ec0609994ef7a006db4f9b9d055b46cfb6514e06".into(),
+        };
+        cache_l1.insert(
+            (tx_id.clone(), 0, 0),
+            TraversalResult {
+                inscription_number: OrdinalInscriptionNumber {
+                    classic: 0,
+                    jubilee: 0,
+                },
+                inscription_input_index: 0,
+                transaction_identifier_inscription: tx_id,
+                ordinal_number: 200,
+                transfers: 0,
+            },
+        );
+
+        let mut pg_client = pg_test_connection().await;
+        ordinals_pg::migrate(&mut pg_client).await?;
+        {
+            let mut ord_client = pg_pool_client(&pg_test_connection_pool()).await?;
+            let client = pg_begin(&mut ord_client).await?;
+
+            let mut block = TestBlockBuilder::new()
+                // Coinbase
+                .add_transaction(TestTransactionBuilder::new().build())
+                .add_transaction(
+                    TestTransactionBuilder::new()
+                        .hash(
+                            "b4722ad74e7092a194e367f2ec0609994ef7a006db4f9b9d055b46cfb6514e06"
+                                .into(),
+                        )
+                        .add_ordinal_operation(OrdinalOperation::InscriptionRevealed(
+                            OrdinalInscriptionRevealData {
+                                content_bytes: "0x101010".into(),
+                                content_type: "text/plain".into(),
+                                content_length: 3,
+                                inscription_number: OrdinalInscriptionNumber {
+                                    classic: 0,
+                                    jubilee: 0,
+                                },
+                                inscription_fee: 200,
+                                inscription_output_value: 10000,
+                                inscription_id: "".into(),
+                                inscription_input_index: 0,
+                                inscription_pointer: Some(0),
+                                inscriber_address: Some("".into()),
+                                delegate: None,
+                                metaprotocol: None,
+                                metadata: None,
+                                parents: vec![],
+                                ordinal_number: 100,
+                                ordinal_block_height: 100,
+                                ordinal_offset: 0,
+                                tx_index: 0,
+                                transfers_pre_inscription: 0,
+                                satpoint_post_inscription: "".into(),
+                                curse_type: None,
+                                charms: 0,
+                            },
+                        ))
+                        .build(),
+                )
+                .build();
+
+            update_block_inscriptions_with_consensus_sequence_data(
+                &mut block,
+                &mut sequence_cursor,
+                &mut cache_l1,
+                &client,
+                &ctx,
+            )
+            .await?;
+
+            let result = &block.transactions[1].metadata.ordinal_operations[0];
+            println!("{:?}", result);
+        }
+        pg_reset_db(&mut pg_client).await?;
+
+        Ok(())
+    }
 }
