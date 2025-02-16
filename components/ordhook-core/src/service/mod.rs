@@ -17,7 +17,7 @@ use crate::db::cursor::{BlockBytesCursor, TransactionBytesCursor};
 use crate::db::ordinals_pg;
 use crate::utils::bitcoind::bitcoind_wait_for_chain_tip;
 use crate::utils::monitoring::{start_serving_prometheus_metrics, PrometheusMonitoring};
-use crate::{try_error, try_info};
+use crate::{try_crit, try_error, try_info};
 use chainhook_postgres::{pg_begin, pg_pool, pg_pool_client};
 use chainhook_sdk::observer::{
     start_event_observer, BitcoinBlockDataCached, ObserverEvent, ObserverSidecar,
@@ -205,15 +205,14 @@ impl Service {
                                             let _ = block_mutator_out_tx.send(blocks_to_mutate);
                                         },
                                         Err(e) => {
-                                            try_error!(ctx, "block mutation error: {e}");
+                                            try_crit!(ctx, "Error indexing streamed block: {e}");
+                                            std::process::exit(1);
                                         },
                                     };
                                 }
                             }
                             recv(chain_event_notifier_rx) -> _msg => {
-                                // if let Ok(command) = msg {
-                                //     chainhook_sidecar_mutate_ordhook_db(command, &config, &ctx)
-                                // }
+                                // No action required.
                             }
                         }
                     }
