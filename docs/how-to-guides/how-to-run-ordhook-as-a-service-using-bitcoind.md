@@ -8,7 +8,7 @@ title: Run Ordhook as a Service Using Bitcoind
 
 The Bitcoin Core daemon (bitcoind) is a program that implements the Bitcoin protocol for remote procedure call (RPC) use. Ordhook can be set up to interact with the Bitcoin chainstate through bitcoind's ZeroMQ interface, its embedded networking library, passing raw blockchain data to be evaluated for relevant events.
 
-This guide is written to work with the latest Bitcoin Core software containing bitcoind, [Bitcoin Core 25.0](https://bitcoincore.org/bin/bitcoin-core-25.0/).
+This guide is written to work with the latest Bitcoin Core software containing bitcoind, [Bitcoin Core 28.0](https://bitcoincore.org/bin/bitcoin-core-28.0/).
 
 > **_NOTE:_**
 >
