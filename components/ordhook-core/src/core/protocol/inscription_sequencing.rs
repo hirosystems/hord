@@ -619,12 +619,16 @@ async fn update_tx_inscriptions_with_consensus_sequence_data(
 mod test {
     use std::collections::BTreeMap;
 
+    use test_case::test_case;
+
     use chainhook_postgres::{pg_begin, pg_pool_client};
     use chainhook_sdk::utils::Context;
     use chainhook_types::{
-        OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalOperation,
-        TransactionIdentifier,
+        bitcoin::{OutPoint, TxIn, TxOut},
+        OrdinalInscriptionCurseType, OrdinalInscriptionNumber, OrdinalInscriptionRevealData,
+        OrdinalOperation, TransactionIdentifier,
     };
+    use ord::charm::Charm;
 
     use crate::{
         core::{
@@ -636,8 +640,17 @@ mod test {
 
     use super::update_block_inscriptions_with_consensus_sequence_data;
 
+    #[test_case((884207, false, 1262349832364434, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![]); "common sat")]
+    #[test_case((884207, false, 0, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![Charm::Coin, Charm::Mythic, Charm::Palindrome]); "mythic sat")]
+    #[test_case((884207, false, 1050000000000000, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![Charm::Coin, Charm::Epic]); "epic sat")]
+    #[test_case((884207, false, 123454321, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![Charm::Palindrome]); "palindrome sat")]
+    #[test_case((884207, false, 1262349832364434, "0x00".into()) => Ok(vec![Charm::Burned]); "burned inscription")]
+    #[test_case((780000, true, 1262349832364434, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![Charm::Cursed]); "cursed inscription")]
+    #[test_case((884207, true, 1262349832364434, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![Charm::Vindicated]); "vindicated inscription")]
     #[tokio::test]
-    async fn sequence_inscriptions_in_block() -> Result<(), String> {
+    async fn inscription_charms(
+        (block_height, cursed, ordinal_number, script_pubkey): (u64, bool, u64, String),
+    ) -> Result<Vec<Charm>, String> {
         let ctx = Context::empty();
         let mut sequence_cursor = SequenceCursor::new();
         let mut cache_l1 = BTreeMap::new();
@@ -648,23 +661,23 @@ mod test {
             (tx_id.clone(), 0, 0),
             TraversalResult {
                 inscription_number: OrdinalInscriptionNumber {
-                    classic: 0,
+                    classic: if cursed { -1 } else { 0 },
                     jubilee: 0,
                 },
                 inscription_input_index: 0,
                 transaction_identifier_inscription: tx_id,
-                ordinal_number: 200,
+                ordinal_number,
                 transfers: 0,
             },
         );
-
         let mut pg_client = pg_test_connection().await;
         ordinals_pg::migrate(&mut pg_client).await?;
-        {
+        let result = {
             let mut ord_client = pg_pool_client(&pg_test_connection_pool()).await?;
             let client = pg_begin(&mut ord_client).await?;
 
             let mut block = TestBlockBuilder::new()
+                .height(block_height)
                 // Coinbase
                 .add_transaction(TestTransactionBuilder::new().build())
                 .add_transaction(
@@ -673,32 +686,44 @@ mod test {
                             "b4722ad74e7092a194e367f2ec0609994ef7a006db4f9b9d055b46cfb6514e06"
                                 .into(),
                         )
+                        .add_input(TxIn {
+                            previous_output: OutPoint {
+                                txid: TransactionIdentifier { hash: "f181aa98f2572879bd02278c72c83c7eaac2db82af713d1d239fc41859b2a26e".into() },
+                                vout: 0,
+                                value: 10000,
+                                block_height: 884200,
+                            },
+                            script_sig: "0x00".into(),
+                            sequence: 0,
+                            witness: vec!["0x00".into()],
+                        })
+                        .add_output(TxOut { value: 8000, script_pubkey })
                         .add_ordinal_operation(OrdinalOperation::InscriptionRevealed(
                             OrdinalInscriptionRevealData {
                                 content_bytes: "0x101010".into(),
                                 content_type: "text/plain".into(),
                                 content_length: 3,
                                 inscription_number: OrdinalInscriptionNumber {
-                                    classic: 0,
+                                    classic: if cursed { -1 } else { 0 },
                                     jubilee: 0,
                                 },
-                                inscription_fee: 200,
-                                inscription_output_value: 10000,
+                                inscription_fee: 0,
+                                inscription_output_value: 0,
                                 inscription_id: "".into(),
                                 inscription_input_index: 0,
                                 inscription_pointer: Some(0),
-                                inscriber_address: Some("".into()),
+                                inscriber_address: Some("bc1pd99n363yjz8gd2zhy7gstsmk4qkdz4t029j44wewhmee3dta429sm5xqrd".into()),
                                 delegate: None,
                                 metaprotocol: None,
                                 metadata: None,
                                 parents: vec![],
-                                ordinal_number: 100,
-                                ordinal_block_height: 100,
+                                ordinal_number: 0,
+                                ordinal_block_height: 0,
                                 ordinal_offset: 0,
                                 tx_index: 0,
                                 transfers_pre_inscription: 0,
                                 satpoint_post_inscription: "".into(),
-                                curse_type: None,
+                                curse_type: if cursed { Some(OrdinalInscriptionCurseType::Generic) } else { None },
                                 charms: 0,
                             },
                         ))
@@ -716,10 +741,16 @@ mod test {
             .await?;
 
             let result = &block.transactions[1].metadata.ordinal_operations[0];
-            println!("{:?}", result);
-        }
+            // println!("{:?}", result);
+            let charms = match result {
+                OrdinalOperation::InscriptionRevealed(data) => data.charms,
+                _ => unreachable!(),
+            };
+            // println!("{:?}", Charm::charms(charms));
+            Ok(Charm::charms(charms))
+        };
         pg_reset_db(&mut pg_client).await?;
 
-        Ok(())
+        result
     }
 }
