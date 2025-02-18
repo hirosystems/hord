@@ -550,6 +550,15 @@ async fn update_tx_inscriptions_with_consensus_sequence_data(
             None => inscription.curse_type.take(),
         };
 
+        inscription.charms |= Sat(traversal.ordinal_number).charms();
+        if is_cursed {
+            if block_identifier.index >= get_jubilee_block_height(network) {
+                Charm::Vindicated.set(&mut inscription.charms);
+            } else {
+                Charm::Cursed.set(&mut inscription.charms);
+            }
+        }
+
         let (destination, satpoint_post_transfer, output_value) = compute_satpoint_post_transfer(
             &&*tx,
             input_index,
@@ -588,14 +597,7 @@ async fn update_tx_inscriptions_with_consensus_sequence_data(
             }
         };
 
-        inscription.charms |= Sat(traversal.ordinal_number).charms();
-        if is_cursed {
-            if block_identifier.index >= get_jubilee_block_height(network) {
-                Charm::Vindicated.set(&mut inscription.charms);
-            } else {
-                Charm::Cursed.set(&mut inscription.charms);
-            }
-        } else {
+        if !is_cursed {
             // The reinscriptions_data needs to be augmented as we go, to handle transaction chaining.
             reinscriptions_data.insert(traversal.ordinal_number, traversal.get_inscription_id());
         }
