@@ -342,6 +342,7 @@ export const InscriptionResponse = Type.Object(
         examples: ['brc20'],
       })
     ),
+    charms: Type.Array(Type.String({ examples: ['coin', 'palindrome', 'vindicated'] })),
   },
   { title: 'Inscription Response' }
 );
