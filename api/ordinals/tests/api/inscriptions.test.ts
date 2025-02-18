@@ -96,6 +96,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -200,6 +201,7 @@ describe('/inscriptions', () => {
           'b4b27b9a15f928b95a8ce4b418946553b7b313a345254cd9b23d79489175fa5ai0',
         ],
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -299,9 +301,9 @@ describe('/inscriptions', () => {
         url: '/ordinals/v1/inscriptions/f351d86c6e6cae3c64e297e7463095732f216875bcc1f3c03f950a492bb25421i0',
       });
       expect(response.statusCode).toBe(200);
-      expect(response.json().parent).toBe(
-        '9f4a9b73b0713c5da01c0a47f97c6c001af9028d6bdd9e264dfacbc4e6790201i0'
-      );
+      expect(response.json().parent_refs).toStrictEqual([
+        '9f4a9b73b0713c5da01c0a47f97c6c001af9028d6bdd9e264dfacbc4e6790201i0',
+      ]);
     });
 
     test('shows inscription with metadata', async () => {
@@ -406,6 +408,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -489,6 +492,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -599,6 +603,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -657,6 +662,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -771,6 +777,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -865,6 +872,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -923,6 +931,7 @@ describe('/inscriptions', () => {
         recursive: false,
         recursion_refs: null,
         parent: null,
+        parent_refs: [],
         metadata: null,
         meta_protocol: null,
         delegate: null,
@@ -1668,6 +1677,7 @@ describe('/inscriptions', () => {
           recursive: false,
           recursion_refs: null,
           parent: null,
+          parent_refs: [],
           metadata: null,
           meta_protocol: null,
           delegate: null,
@@ -1699,6 +1709,7 @@ describe('/inscriptions', () => {
           recursive: false,
           recursion_refs: null,
           parent: null,
+          parent_refs: [],
           metadata: null,
           meta_protocol: null,
           delegate: null,
@@ -1810,6 +1821,7 @@ describe('/inscriptions', () => {
           recursive: false,
           recursion_refs: null,
           parent: null,
+          parent_refs: [],
           metadata: null,
           meta_protocol: null,
           delegate: null,
@@ -1851,6 +1863,7 @@ describe('/inscriptions', () => {
           recursive: false,
           recursion_refs: null,
           parent: null,
+          parent_refs: [],
           metadata: null,
           meta_protocol: null,
           delegate: null,

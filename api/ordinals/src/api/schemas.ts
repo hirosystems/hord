@@ -326,9 +326,13 @@ export const InscriptionResponse = Type.Object(
         })
       )
     ),
-    parent: Nullable(
+    parent: Type.Null(), // Deprecated
+    parent_refs: Type.Array(
       Type.String({
-        examples: ['1463d48e9248159084929294f64bda04487503d30ce7ab58365df1dc6fd58218i0'],
+        examples: [
+          '1463d48e9248159084929294f64bda04487503d30ce7ab58365df1dc6fd58218i0',
+          '541076e29e1b63460412d3087b37130c9a14abd0beeb4e9b2b805d2072c84dedi0',
+        ],
       })
     ),
     delegate: Nullable(
