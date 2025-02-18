@@ -89,7 +89,7 @@ export function parseDbInscriptions(
     timestamp: parseTimestamp(i.timestamp),
     curse_type: i.curse_type,
     recursive: i.recursive,
-    recursion_refs: i.recursion_refs?.split(',') ?? null,
+    recursion_refs: i.recursion_refs?.split(',') ?? [],
     parent: null,
     parent_refs: i.parent_refs?.split(',') ?? [],
     metadata: i.metadata ? JSON.parse(i.metadata) : null,
