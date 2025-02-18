@@ -190,6 +190,7 @@ export class PgStore extends BasePgStore {
             i.timestamp AS genesis_timestamp,
             i.address AS genesis_address,
             i.charms,
+            i.delegate,
             cur.address,
             cur.tx_index,
             cur.block_height,
