@@ -1,3 +1,11 @@
+## [3.0.0-beta.8](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.7...v3.0.0-beta.8) (2025-02-18)
+
+
+### Features
+
+* **api:** return inscription charms in responses ([#435](https://github.com/hirosystems/ordhook/issues/435)) ([a7073da](https://github.com/hirosystems/ordhook/commit/a7073da0b4bb0c61d57284c48c65f73b0491a909))
+* index inscription charms ([#433](https://github.com/hirosystems/ordhook/issues/433)) ([4291eab](https://github.com/hirosystems/ordhook/commit/4291eabba7110ca5d4684f4801e234621e64d96b))
+
 ## [3.0.0-beta.7](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.6...v3.0.0-beta.7) (2025-02-16)
 
 
