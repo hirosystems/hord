@@ -68,6 +68,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 10369,
       });
       const expected = {
         address: 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td',
@@ -98,6 +99,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: ['coin', 'reinscription', 'mythic', 'palindrome'],
       };
 
       // By inscription id
@@ -154,6 +156,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
       await insertTestInscriptionRecursion(db.sql, {
         inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -200,6 +203,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       };
 
       // By inscription id
@@ -251,6 +255,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '650000',
+        charms: 0,
       });
       await inscriptionReveal(db.sql, {
         inscription_id: 'f351d86c6e6cae3c64e297e7463095732f216875bcc1f3c03f950a492bb25421i0',
@@ -283,6 +288,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
       await insertTestInscriptionParent(db.sql, {
         inscription_id: 'f351d86c6e6cae3c64e297e7463095732f216875bcc1f3c03f950a492bb25421i0',
@@ -330,6 +336,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '650000',
+        charms: 0,
       });
       const response = await fastify.inject({
         method: 'GET',
@@ -371,6 +378,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
       const expected = {
         address: '',
@@ -401,6 +409,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       };
 
       // By inscription id
@@ -452,6 +461,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
       const expected = {
         address: 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td',
@@ -482,6 +492,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       };
 
       // By inscription id
@@ -533,6 +544,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
 
       // Transfer 1
@@ -590,6 +602,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       });
 
       // Transfer 2
@@ -647,6 +660,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       });
     });
 
@@ -682,6 +696,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
 
       // Multiple transfers
@@ -759,6 +774,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       });
     });
 
@@ -794,6 +810,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
 
       // Transfer 1
@@ -851,6 +868,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       });
 
       // Transfer 2
@@ -908,6 +926,7 @@ describe('/inscriptions', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       });
     });
 
@@ -943,6 +962,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
       const response = await fastify.inject({
         method: 'GET',
@@ -985,6 +1005,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
       await inscriptionReveal(db.sql, {
         inscription_id: '42174ecc8a245841035793390bb53d63b3c2acb61366446f601b09e73b94b656i0',
@@ -1017,6 +1038,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '51483',
+        charms: 0,
       });
       const response = await fastify.inject({
         method: 'GET',
@@ -1061,6 +1083,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '650000',
+        charms: 0,
       });
 
       // Transfer 1
@@ -1213,6 +1236,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '650000',
+        charms: 0,
       });
       await inscriptionReveal(db.sql, {
         inscription_id: '7ac73ecd01b9da4a7eab904655416dbfe8e03f193e091761b5a63ad0963570cdi0',
@@ -1245,6 +1269,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '650000',
+        charms: 0,
       });
 
       // No transfers on this block because they are all genesis.
@@ -1573,6 +1598,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '650000',
+        charms: 0,
       });
       await inscriptionReveal(db.sql, {
         inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -1605,6 +1631,7 @@ describe('/inscriptions', () => {
         transfer_type: 'transferred',
         rarity: 'common',
         coinbase_height: '650000',
+        charms: 0,
       });
 
       const response1 = await fastify.inject({
@@ -1644,6 +1671,7 @@ describe('/inscriptions', () => {
           metadata: null,
           meta_protocol: null,
           delegate: null,
+          charms: [],
         },
         {
           address: 'bc1pscktlmn99gyzlvymvrezh6vwd0l4kg06tg5rvssw0czg8873gz5sdkteqj',
@@ -1674,6 +1702,7 @@ describe('/inscriptions', () => {
           metadata: null,
           meta_protocol: null,
           delegate: null,
+          charms: [],
         },
       ]);
     });
@@ -1711,6 +1740,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -1743,6 +1773,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -1782,6 +1813,7 @@ describe('/inscriptions', () => {
           metadata: null,
           meta_protocol: null,
           delegate: null,
+          charms: [],
         };
         expect(responseJson1.results[0]).toStrictEqual(result1);
 
@@ -1822,6 +1854,7 @@ describe('/inscriptions', () => {
           metadata: null,
           meta_protocol: null,
           delegate: null,
+          charms: [],
         };
         expect(responseJson2.results[0]).toStrictEqual(result2);
 
@@ -1869,6 +1902,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -1901,6 +1935,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'mythic',
           coinbase_height: '0',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -1963,6 +1998,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -1995,6 +2031,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -2060,6 +2097,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2092,6 +2130,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -2153,6 +2192,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2185,6 +2225,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -2248,6 +2289,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         const response4 = await fastify.inject({
           method: 'GET',
@@ -2293,6 +2335,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2325,6 +2368,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -2372,6 +2416,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2404,6 +2449,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response2 = await fastify.inject({
@@ -2459,6 +2505,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2491,6 +2538,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response2 = await fastify.inject({
@@ -2546,6 +2594,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '51483',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2578,6 +2627,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '200',
+          charms: 0,
         });
 
         const response2 = await fastify.inject({
@@ -2633,6 +2683,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2665,6 +2716,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response2 = await fastify.inject({
@@ -2719,6 +2771,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2751,6 +2804,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -2797,6 +2851,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2829,6 +2884,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -2885,6 +2941,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2919,6 +2976,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await insertTestInscriptionRecursion(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -2982,6 +3040,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -3014,6 +3073,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -3073,6 +3133,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -3105,6 +3166,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -3163,6 +3225,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -3195,6 +3258,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '567c7605439dfdc3a289d13fd2132237852f4a56e784b9364ba94499d5f9baf1i0',
@@ -3227,6 +3291,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '0',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -3284,6 +3349,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -3316,6 +3382,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'epic',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '567c7605439dfdc3a289d13fd2132237852f4a56e784b9364ba94499d5f9baf1i0',
@@ -3348,6 +3415,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'mythic',
           coinbase_height: '0',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -3405,6 +3473,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -3437,6 +3506,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '567c7605439dfdc3a289d13fd2132237852f4a56e784b9364ba94499d5f9baf1i0',
@@ -3469,6 +3539,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '0',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({
@@ -3526,6 +3597,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0',
@@ -3558,6 +3630,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '650000',
+          charms: 0,
         });
         await inscriptionReveal(db.sql, {
           inscription_id: '567c7605439dfdc3a289d13fd2132237852f4a56e784b9364ba94499d5f9baf1i0',
@@ -3590,6 +3663,7 @@ describe('/inscriptions', () => {
           transfer_type: 'transferred',
           rarity: 'common',
           coinbase_height: '0',
+          charms: 0,
         });
 
         const response1 = await fastify.inject({

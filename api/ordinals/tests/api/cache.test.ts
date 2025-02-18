@@ -65,6 +65,7 @@ describe('ETag cache', () => {
       transfer_type: 'transferred',
       rarity: 'common',
       coinbase_height: '9000',
+      charms: 0,
     });
     const response = await fastify.inject({
       method: 'GET',
@@ -165,6 +166,7 @@ describe('ETag cache', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
     await inscriptionReveal(db.sql, {
       content: '0x48656C6C6F',
@@ -197,6 +199,7 @@ describe('ETag cache', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
 
     // ETag response
@@ -277,6 +280,7 @@ describe('ETag cache', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
 
     // ETag response
@@ -328,6 +332,7 @@ describe('ETag cache', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
 
     // Cache busted
@@ -371,6 +376,7 @@ describe('ETag cache', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
 
     // ETag response
@@ -422,6 +428,7 @@ describe('ETag cache', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
 
     // Cache busted

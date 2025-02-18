@@ -84,6 +84,7 @@ describe('/sats', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
     const response = await fastify.inject({
       method: 'GET',
@@ -127,6 +128,7 @@ describe('/sats', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
     await inscriptionReveal(db.sql, {
       content: '0x48656C6C6F',
@@ -160,6 +162,7 @@ describe('/sats', () => {
       prev_offset: null,
       transfer_type: 'transferred',
       rarity: 'common',
+      charms: 0,
     });
     // Simulate the inscription transfer for -7
     await inscriptionTransfer(db.sql, {
@@ -219,6 +222,7 @@ describe('/sats', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       },
       {
         address: 'bc1p3cyx5e2hgh53w7kpxcvm8s4kkega9gv5wfw7c4qxsvxl0u8x834qf0u2td',
@@ -250,6 +254,7 @@ describe('/sats', () => {
         metadata: null,
         meta_protocol: null,
         delegate: null,
+        charms: [],
       },
     ]);
 

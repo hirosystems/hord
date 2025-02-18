@@ -77,6 +77,7 @@ type TestOrdinalsInscriptionsRow = {
   metaprotocol: string | null;
   delegate: string | null;
   timestamp: number;
+  charms: number;
 };
 async function insertTestInscription(sql: PgSqlClient, row: TestOrdinalsInscriptionsRow) {
   await sql`INSERT INTO inscriptions ${sql(row)}`;
@@ -230,6 +231,7 @@ export async function inscriptionReveal(sql: PgSqlClient, reveal: TestOrdinalsIn
     metaprotocol: reveal.metaprotocol,
     delegate: reveal.delegate,
     timestamp: reveal.timestamp,
+    charms: reveal.charms,
   });
   await insertTestLocation(sql, {
     ordinal_number: reveal.ordinal_number,

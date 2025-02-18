@@ -77,6 +77,7 @@ describe('Status', () => {
       transfer_type: 'transferred',
       rarity: 'common',
       coinbase_height: '650000',
+      charms: 0,
     });
     await inscriptionReveal(db.sql, {
       inscription_id: 'a98d7055a77fa0b96cc31e30bb8bacf777382d1b67f1b7eca6f2014e961591c8i0',
@@ -109,6 +110,7 @@ describe('Status', () => {
       transfer_type: 'transferred',
       rarity: 'common',
       coinbase_height: '650000',
+      charms: 0,
     });
     await updateTestChainTip(db.sql, 791975);
 
