@@ -1,3 +1,10 @@
+## [3.0.0-beta.10](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.9...v3.0.0-beta.10) (2025-02-18)
+
+
+### Bug Fixes
+
+* **api:** multiple parent display ([703f98f](https://github.com/hirosystems/ordhook/commit/703f98f77f9797db3e4f4f0e3e14fbdb7c5275f8))
+
 ## [3.0.0-beta.9](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.8...v3.0.0-beta.9) (2025-02-18)
 
 
