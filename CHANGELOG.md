@@ -1,3 +1,16 @@
+## [3.0.0-beta.9](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.8...v3.0.0-beta.9) (2025-02-18)
+
+
+### Features
+
+* **api:** add parent_refs field to inscription responses ([#436](https://github.com/hirosystems/ordhook/issues/436)) ([5630644](https://github.com/hirosystems/ordhook/commit/563064413bcc2168f96cb87af4fd6ab51ed36e73))
+
+
+### Bug Fixes
+
+* **api:** show delegate inscription id correctly ([#439](https://github.com/hirosystems/ordhook/issues/439)) ([d4ee264](https://github.com/hirosystems/ordhook/commit/d4ee264ad0bec2749299b60e985927ba87d6f40e))
+* calculate charms correctly when inscription is unbound ([#440](https://github.com/hirosystems/ordhook/issues/440)) ([acfda83](https://github.com/hirosystems/ordhook/commit/acfda83757e5c06977ecf43ca396b7fcd780d71b))
+
 ## [3.0.0-beta.8](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.7...v3.0.0-beta.8) (2025-02-18)
 
 
