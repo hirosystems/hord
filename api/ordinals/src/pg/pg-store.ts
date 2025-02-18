@@ -175,8 +175,7 @@ export class PgStore extends BasePgStore {
               SELECT ip.parent_inscription_id
               FROM inscription_parents AS ip
               WHERE ip.inscription_id = i.inscription_id
-              LIMIT 1
-            ) AS parent,
+            ) AS parent_refs,
             i.metadata,
             s.rarity AS sat_rarity,
             s.coinbase_height AS sat_coinbase_height,
