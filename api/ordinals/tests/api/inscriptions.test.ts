@@ -1056,6 +1056,15 @@ describe('/inscriptions', () => {
       expect(response.statusCode).toBe(200);
       expect(response.headers['content-length']).toBe('5');
       expect(response.body).toBe('Hello');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/ordinals/v1/inscriptions/42174ecc8a245841035793390bb53d63b3c2acb61366446f601b09e73b94b656i0',
+      });
+      expect(response2.statusCode).toBe(200);
+      expect(response2.json().delegate).toBe(
+        '38c46a8bf7ec90bc7f6b797e7dc84baa97f4e5fd4286b92fe1b50176d03b18dci0'
+      );
     });
   });
 
