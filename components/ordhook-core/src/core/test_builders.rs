@@ -1,5 +1,8 @@
 use chainhook_types::{
-    bitcoin::{OutPoint, TxIn, TxOut}, BitcoinBlockData, BitcoinBlockMetadata, BitcoinNetwork, BitcoinTransactionData, BitcoinTransactionMetadata, BlockIdentifier, Brc20Operation, OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalOperation, TransactionIdentifier
+    bitcoin::{OutPoint, TxIn, TxOut},
+    BitcoinBlockData, BitcoinBlockMetadata, BitcoinNetwork, BitcoinTransactionData,
+    BitcoinTransactionMetadata, BlockIdentifier, Brc20Operation, OrdinalInscriptionNumber,
+    OrdinalInscriptionRevealData, OrdinalOperation, TransactionIdentifier,
 };
 
 pub struct TestBlockBuilder {
@@ -101,7 +104,7 @@ impl TestTransactionBuilder {
                 transfers_pre_inscription: 0,
                 satpoint_post_inscription: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0".to_string(),
                 curse_type: None,
-                charms: OrdinalInscriptionCharms::none(),
+                charms: 0,
             },
         )];
         tx

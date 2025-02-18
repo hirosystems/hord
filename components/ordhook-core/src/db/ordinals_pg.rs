@@ -260,15 +260,16 @@ async fn insert_inscriptions<T: GenericClient>(
             params.push(&row.metaprotocol);
             params.push(&row.delegate);
             params.push(&row.timestamp);
+            params.push(&row.charms);
         }
         client
             .query(
                 &format!("INSERT INTO inscriptions
                     (inscription_id, ordinal_number, number, classic_number, block_height, block_hash, tx_id, tx_index, address,
                     mime_type, content_type, content_length, content, fee, curse_type, recursive, input_index, pointer, metadata,
-                    metaprotocol, delegate, timestamp)
+                    metaprotocol, delegate, timestamp, charms)
                     VALUES {}
-                    ON CONFLICT (number) DO NOTHING", utils::multi_row_query_param_str(chunk.len(), 22)),
+                    ON CONFLICT (number) DO NOTHING", utils::multi_row_query_param_str(chunk.len(), 23)),
                 &params,
             )
             .await
@@ -1010,7 +1011,8 @@ mod test {
         FromPgRow,
     };
     use chainhook_types::{
-        OrdinalInscriptionCharms, OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData, OrdinalInscriptionTransferDestination, OrdinalOperation
+        OrdinalInscriptionNumber, OrdinalInscriptionRevealData, OrdinalInscriptionTransferData,
+        OrdinalInscriptionTransferDestination, OrdinalOperation,
     };
     use deadpool_postgres::GenericClient;
 
@@ -1203,7 +1205,7 @@ mod test {
                                     transfers_pre_inscription: 0,
                                     satpoint_post_inscription: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0".to_string(),
                                     curse_type: None,
-                                    charms: OrdinalInscriptionCharms::none(),
+                                    charms: 0,
                                 },
                             ))
                             .build()
