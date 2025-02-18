@@ -37,6 +37,7 @@ export type DbFullyLocatedInscriptionResult = {
   pointer: number | null;
   metaprotocol: string | null;
   delegate: string | null;
+  charms: string;
 };
 
 export type DbLocation = {

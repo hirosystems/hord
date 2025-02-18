@@ -25,7 +25,7 @@ use crate::{
         protocol::{
             inscription_parsing::parse_inscriptions_in_standardized_block,
             inscription_sequencing::{
-                augment_block_with_inscriptions, get_bitcoin_network, get_jubilee_block_height,
+                update_block_inscriptions_with_consensus_sequence_data, get_bitcoin_network, get_jubilee_block_height,
                 parallelize_inscription_data_computations,
             },
             satoshi_numbering::TraversalResult,
@@ -224,7 +224,7 @@ pub async fn index_block(
             ctx,
         )?;
         if has_inscription_reveals {
-            augment_block_with_inscriptions(block, sequence_cursor, cache_l1, &ord_tx, ctx)
+            update_block_inscriptions_with_consensus_sequence_data(block, sequence_cursor, cache_l1, &ord_tx, ctx)
                 .await?;
         }
         augment_block_with_transfers(block, &ord_tx, ctx).await?;

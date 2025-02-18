@@ -31,6 +31,37 @@ function parseTimestamp(timestamp: number): number {
   return timestamp * 1000;
 }
 
+enum Charm {
+  coin = 0,
+  cursed = 1,
+  epic = 2,
+  legendary = 3,
+  lost = 4,
+  nineball = 5,
+  rare = 6,
+  reinscription = 7,
+  unbound = 8,
+  uncommon = 9,
+  vindicated = 10,
+  mythic = 11,
+  burned = 12,
+  palindrome = 13,
+}
+
+function parseCharms(charms: string): string[] {
+  const charmsVal = parseInt(charms);
+  const result: Charm[] = [];
+  for (const charm in Charm) {
+    if (!isNaN(Number(charm))) {
+      const charmValue = Number(charm);
+      if (charmsVal & (1 << charmValue)) {
+        result.push(charmValue as Charm);
+      }
+    }
+  }
+  return result.map(charm => Charm[charm]);
+}
+
 export function parseDbInscriptions(
   items: DbFullyLocatedInscriptionResult[]
 ): InscriptionResponseType[] {
@@ -63,6 +94,7 @@ export function parseDbInscriptions(
     metadata: i.metadata ? JSON.parse(i.metadata) : null,
     delegate: i.delegate ?? null,
     meta_protocol: i.metaprotocol ?? null,
+    charms: parseCharms(i.charms),
   }));
 }
 export function parseDbInscription(item: DbFullyLocatedInscriptionResult): InscriptionResponseType {

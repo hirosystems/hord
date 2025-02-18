@@ -32,6 +32,7 @@ pub struct DbInscription {
     pub metaprotocol: Option<String>,
     pub delegate: Option<String>,
     pub timestamp: PgBigIntU32,
+    pub charms: PgBigIntU32,
 }
 
 impl DbInscription {
@@ -82,6 +83,7 @@ impl DbInscription {
             metaprotocol: reveal.metaprotocol.clone(),
             delegate: reveal.delegate.clone(),
             timestamp: PgBigIntU32(timestamp),
+            charms: PgBigIntU32(reveal.charms as u32),
         }
     }
 }
@@ -111,6 +113,7 @@ impl FromPgRow for DbInscription {
             metaprotocol: row.get("metaprotocol"),
             delegate: row.get("delegate"),
             timestamp: row.get("timestamp"),
+            charms: row.get("charms"),
         }
     }
 }
