@@ -1,3 +1,10 @@
+## [3.0.0-beta.7](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.6...v3.0.0-beta.7) (2025-02-16)
+
+
+### Bug Fixes
+
+* kill process when a streamed block fails to index ([#431](https://github.com/hirosystems/ordhook/issues/431)) ([84e189b](https://github.com/hirosystems/ordhook/commit/84e189b9b49b710a3b143dab4ff53155951620c0))
+
 ## [3.0.0-beta.6](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.5...v3.0.0-beta.6) (2025-02-13)
 
 
