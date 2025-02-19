@@ -82,38 +82,36 @@ export class Brc20PgStore extends BasePgStore {
   ): Promise<DbPaginatedResult<DbBrc20Balance>> {
     const ticker = sqlOr(
       this.sql,
-      args.ticker?.map(t => this.sql`d.ticker LIKE LOWER(${t}) || '%'`)
+      args.ticker?.map(t => this.sql`b.ticker LIKE LOWER(${t}) || '%'`)
     );
     // Change selection table depending if we're filtering by block height or not.
     const results = await this.sql<(DbBrc20Balance & { total: number })[]>`
+      SELECT
+        b.ticker, (SELECT decimals FROM tokens WHERE ticker = b.ticker) AS decimals,
+        b.avail_balance, b.trans_balance, b.total_balance, COUNT(*) OVER() as total
       ${
         args.block_height
           ? this.sql`
-              SELECT
-                d.ticker, d.decimals,
-                SUM(b.avail_balance) AS avail_balance,
-                SUM(b.trans_balance) AS trans_balance,
-                SUM(b.avail_balance + b.trans_balance) AS total_balance,
-                COUNT(*) OVER() as total
-              FROM operations AS b
-              INNER JOIN tokens AS d ON d.ticker = b.ticker
+              FROM balances_history b
+              INNER JOIN (
+                SELECT ticker, address, MAX(block_height) as max_block_height
+                FROM balances_history
+                WHERE address = ${args.address} AND block_height <= ${args.block_height}
+                GROUP BY ticker, address
+              ) latest ON b.ticker = latest.ticker AND b.address = latest.address AND b.block_height = latest.max_block_height
               WHERE
-                b.address = ${args.address}
-                AND b.block_height <= ${args.block_height}
+                b.total_balance > 0
                 ${ticker ? this.sql`AND ${ticker}` : this.sql``}
-              GROUP BY d.ticker, d.decimals
-              HAVING SUM(b.avail_balance + b.trans_balance) > 0
             `
           : this.sql`
-              SELECT d.ticker, d.decimals, b.avail_balance, b.trans_balance, b.total_balance, COUNT(*) OVER() as total
               FROM balances AS b
-              INNER JOIN tokens AS d ON d.ticker = b.ticker
               WHERE
                 b.total_balance > 0
                 AND b.address = ${args.address}
                 ${ticker ? this.sql`AND ${ticker}` : this.sql``}
             `
       }
+      ORDER BY b.total_balance DESC
       LIMIT ${args.limit}
       OFFSET ${args.offset}
     `;

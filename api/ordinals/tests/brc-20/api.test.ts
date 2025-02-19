@@ -754,23 +754,6 @@ describe('BRC-20 API', () => {
           }),
         ])
       );
-      response = await fastify.inject({
-        method: 'GET',
-        url: `/ordinals/brc-20/balances/${addressA}?block_height=${blockHeight}`,
-      });
-      expect(response.statusCode).toBe(200);
-      json = response.json();
-      expect(json.total).toBe(1);
-      expect(json.results).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            available_balance: '1000.000000000000000000',
-            overall_balance: '1000.000000000000000000',
-            ticker: 'pepe',
-            transferrable_balance: '0.000000000000000000',
-          }),
-        ])
-      );
 
       // Step 3: B mints 2000 of the token
       number = inscriptionNumbers.next().value;
@@ -1433,6 +1416,233 @@ describe('BRC-20 API', () => {
         url: `/ordinals/brc-20/tokens/pepe/holders`,
       });
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  describe('/brc-20/balances', () => {
+    test('address balance history is accurate', async () => {
+      // Setup
+      const numbers = incrementing(0);
+      const addressA = 'bc1q6uwuet65rm6xvlz7ztw2gvdmmay5uaycu03mqz';
+      const addressB = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+
+      // A deploys pepe
+      let transferHash = randomHash();
+      let blockHash = randomHash();
+      await brc20TokenDeploy(brc20Db.sql, {
+        ticker: 'pepe',
+        display_ticker: 'pepe',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: numbers.next().value.toString(),
+        block_height: '780000',
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        address: addressA,
+        max: '21000000000000000000000000',
+        limit: '21000000000000000000000000',
+        decimals: 18,
+        self_mint: false,
+        minted_supply: '0',
+        tx_count: 1,
+        timestamp: 1677803510,
+        operation: 'deploy',
+        ordinal_number: '20000',
+        output: `${transferHash}:0`,
+        offset: '0',
+        to_address: null,
+        amount: '0',
+      });
+      // A mints 10000 pepe
+      transferHash = randomHash();
+      blockHash = randomHash();
+      await brc20Operation(brc20Db.sql, {
+        ticker: 'pepe',
+        operation: 'mint',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: numbers.next().value.toString(),
+        ordinal_number: '200000',
+        block_height: '780050',
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        output: `${transferHash}:0`,
+        offset: '0',
+        timestamp: 1677803510,
+        address: addressA,
+        to_address: null,
+        amount: '10000000000000000000000',
+      });
+      // A mints 10000 pepe again
+      transferHash = randomHash();
+      blockHash = randomHash();
+      await brc20Operation(brc20Db.sql, {
+        ticker: 'pepe',
+        operation: 'mint',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: numbers.next().value.toString(),
+        ordinal_number: '200000',
+        block_height: '780060',
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        output: `${transferHash}:0`,
+        offset: '0',
+        timestamp: 1677803510,
+        address: addressA,
+        to_address: null,
+        amount: '10000000000000000000000',
+      });
+      // B mints 10000 pepe
+      transferHash = randomHash();
+      blockHash = randomHash();
+      await brc20Operation(brc20Db.sql, {
+        ticker: 'pepe',
+        operation: 'mint',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: numbers.next().value.toString(),
+        ordinal_number: '200000',
+        block_height: '780070',
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        output: `${transferHash}:0`,
+        offset: '0',
+        timestamp: 1677803510,
+        address: addressB,
+        to_address: null,
+        amount: '10000000000000000000000',
+      });
+
+      // A deploys test
+      transferHash = randomHash();
+      blockHash = randomHash();
+      await brc20TokenDeploy(brc20Db.sql, {
+        ticker: 'test',
+        display_ticker: 'test',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: numbers.next().value.toString(),
+        block_height: '780100',
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        address: addressA,
+        max: '21000000000000000000000000',
+        limit: '21000000000000000000000000',
+        decimals: 18,
+        self_mint: false,
+        minted_supply: '0',
+        tx_count: 1,
+        timestamp: 1677803510,
+        operation: 'deploy',
+        ordinal_number: '20000',
+        output: `${transferHash}:0`,
+        offset: '0',
+        to_address: null,
+        amount: '0',
+      });
+      // A mints 10000 test
+      transferHash = randomHash();
+      blockHash = randomHash();
+      await brc20Operation(brc20Db.sql, {
+        ticker: 'test',
+        operation: 'mint',
+        inscription_id: `${transferHash}i0`,
+        inscription_number: numbers.next().value.toString(),
+        ordinal_number: '200000',
+        block_height: '780200',
+        block_hash: blockHash,
+        tx_id: transferHash,
+        tx_index: 0,
+        output: `${transferHash}:0`,
+        offset: '0',
+        timestamp: 1677803510,
+        address: addressA,
+        to_address: null,
+        amount: '10000000000000000000000',
+      });
+
+      // Verify balance history across block intervals
+      let response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/balances/${addressA}`,
+      });
+      expect(response.statusCode).toBe(200);
+      let json = response.json();
+      expect(json.total).toBe(2);
+      expect(json.results).toEqual(
+        expect.arrayContaining([
+          {
+            available_balance: '20000.000000000000000000',
+            overall_balance: '20000.000000000000000000',
+            ticker: 'pepe',
+            transferrable_balance: '0.000000000000000000',
+          },
+          {
+            available_balance: '10000.000000000000000000',
+            overall_balance: '10000.000000000000000000',
+            ticker: 'test',
+            transferrable_balance: '0.000000000000000000',
+          },
+        ])
+      );
+      response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/balances/${addressA}?block_height=780200`,
+      });
+      expect(response.statusCode).toBe(200);
+      json = response.json();
+      expect(json.total).toBe(2);
+      expect(json.results).toEqual(
+        expect.arrayContaining([
+          {
+            available_balance: '20000.000000000000000000',
+            overall_balance: '20000.000000000000000000',
+            ticker: 'pepe',
+            transferrable_balance: '0.000000000000000000',
+          },
+          {
+            available_balance: '10000.000000000000000000',
+            overall_balance: '10000.000000000000000000',
+            ticker: 'test',
+            transferrable_balance: '0.000000000000000000',
+          },
+        ])
+      );
+      response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/balances/${addressA}?block_height=780200&ticker=te`,
+      });
+      expect(response.statusCode).toBe(200);
+      json = response.json();
+      expect(json.total).toBe(1);
+      expect(json.results).toEqual(
+        expect.arrayContaining([
+          {
+            available_balance: '10000.000000000000000000',
+            overall_balance: '10000.000000000000000000',
+            ticker: 'test',
+            transferrable_balance: '0.000000000000000000',
+          },
+        ])
+      );
+      response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/balances/${addressA}?block_height=780050`,
+      });
+      expect(response.statusCode).toBe(200);
+      json = response.json();
+      expect(json.total).toBe(1);
+      expect(json.results).toEqual(
+        expect.arrayContaining([
+          {
+            available_balance: '10000.000000000000000000',
+            overall_balance: '10000.000000000000000000',
+            ticker: 'pepe',
+            transferrable_balance: '0.000000000000000000',
+          },
+        ])
+      );
     });
   });
 });
