@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+// TODO: add this in chainhook-sdk and import it here?
 use bitcoin::Network;
 use chainhook_sdk::utils::Context;
 use chainhook_types::{

@@ -39,6 +39,7 @@ pub struct IndexerConfig {
     pub bitcoind_rpc_username: String,
     pub bitcoind_rpc_password: String,
     pub bitcoin_block_signaling: BitcoinBlockSignaling,
+    pub prometheus_monitoring_port: Option<u16>,
 }
 
 pub struct Indexer {

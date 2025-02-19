@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+// TODO: add this in chainhook-sdk and import it here?
 use bitcoin::{Address, Network, ScriptBuf};
 use chainhook_sdk::utils::Context;
 use chainhook_types::{
@@ -260,6 +261,7 @@ pub async fn augment_transaction_with_ordinal_transfers(
 
 #[cfg(test)]
 mod test {
+    // TODO: add this in chainhook-sdk and import it here?
     use bitcoin::Network;
     use chainhook_sdk::utils::Context;
     use chainhook_types::OrdinalInscriptionTransferDestination;
