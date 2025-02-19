@@ -1,3 +1,5 @@
+pub mod bitcoind;
+
 use std::{
     collections::{BTreeSet, VecDeque},
     fs::{self, OpenOptions},
