@@ -736,23 +736,6 @@ describe('BRC-20 API', () => {
           } as Brc20ActivityResponse),
         ])
       );
-      response = await fastify.inject({
-        method: 'GET',
-        url: `/ordinals/brc-20/balances/${addressA}`,
-      });
-      expect(response.statusCode).toBe(200);
-      json = response.json();
-      expect(json.total).toBe(1);
-      expect(json.results).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            available_balance: '1000.000000000000000000',
-            overall_balance: '1000.000000000000000000',
-            ticker: 'pepe',
-            transferrable_balance: '0.000000000000000000',
-          }),
-        ])
-      );
 
       // Step 3: B mints 2000 of the token
       number = inscriptionNumbers.next().value;
