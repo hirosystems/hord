@@ -3,11 +3,11 @@ members = [
     "components/chainhook-sdk",
     "components/chainhook-postgres",
     "components/chainhook-types-rs",
-    "components/ordhook-cli",
+    "components/cli",
     "components/ordhook-core",
     "components/ord",
 ]
-default-members = ["components/ordhook-cli"]
+default-members = ["components/cli"]
 resolver = "2"
 
 [workspace.dependencies]
