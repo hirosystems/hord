@@ -671,14 +671,13 @@ describe('BRC-20 API', () => {
       number = inscriptionNumbers.next().value;
       transferHash = randomHash();
       blockHash = randomHash();
-      const blockHeight = blockHeights.next().value.toString();
       await brc20Operation(brc20Db.sql, {
         ticker: 'pepe',
         operation: 'mint',
         inscription_id: `${transferHash}i0`,
         inscription_number: number.toString(),
         ordinal_number: '200000',
-        block_height: blockHeight,
+        block_height: blockHeights.next().value.toString(),
         block_hash: blockHash,
         tx_id: transferHash,
         tx_index: 0,
