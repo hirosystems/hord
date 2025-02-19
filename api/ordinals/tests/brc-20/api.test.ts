@@ -671,13 +671,14 @@ describe('BRC-20 API', () => {
       number = inscriptionNumbers.next().value;
       transferHash = randomHash();
       blockHash = randomHash();
+      const blockHeight = blockHeights.next().value.toString();
       await brc20Operation(brc20Db.sql, {
         ticker: 'pepe',
         operation: 'mint',
         inscription_id: `${transferHash}i0`,
         inscription_number: number.toString(),
         ordinal_number: '200000',
-        block_height: blockHeights.next().value.toString(),
+        block_height: blockHeight,
         block_hash: blockHash,
         tx_id: transferHash,
         tx_index: 0,
@@ -734,6 +735,40 @@ describe('BRC-20 API', () => {
               amount: '1000.000000000000000000',
             },
           } as Brc20ActivityResponse),
+        ])
+      );
+      response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/balances/${addressA}`,
+      });
+      expect(response.statusCode).toBe(200);
+      json = response.json();
+      expect(json.total).toBe(1);
+      expect(json.results).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            available_balance: '1000.000000000000000000',
+            overall_balance: '1000.000000000000000000',
+            ticker: 'pepe',
+            transferrable_balance: '0.000000000000000000',
+          }),
+        ])
+      );
+      response = await fastify.inject({
+        method: 'GET',
+        url: `/ordinals/brc-20/balances/${addressA}?block_height=${blockHeight}`,
+      });
+      expect(response.statusCode).toBe(200);
+      json = response.json();
+      expect(json.total).toBe(1);
+      expect(json.results).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            available_balance: '1000.000000000000000000',
+            overall_balance: '1000.000000000000000000',
+            ticker: 'pepe',
+            transferrable_balance: '0.000000000000000000',
+          }),
         ])
       );
 

@@ -4,17 +4,11 @@ use chainhook_postgres::{
     types::{PgNumericU128, PgNumericU64},
     utils, FromPgRow, BATCH_QUERY_CHUNK_SIZE,
 };
-use chainhook_types::{
-    BitcoinBlockData, Brc20BalanceData, Brc20Operation, Brc20TokenDeployData, Brc20TransferData,
-};
-use refinery::embed_migrations;
 use deadpool_postgres::GenericClient;
+use refinery::embed_migrations;
 use tokio_postgres::{types::ToSql, Client};
 
-use super::{
-    models::{DbOperation, DbToken},
-    u128_amount_to_decimals_str,
-};
+use super::models::{DbOperation, DbToken};
 
 embed_migrations!("../../migrations/ordinals-brc20");
 pub async fn migrate(pg_client: &mut Client) -> Result<(), String> {
@@ -197,7 +191,7 @@ pub async fn insert_operations<T: GenericClient>(
                         tx_index, output, \"offset\", timestamp, address, to_address, amount)
                         VALUES {}
                         ON CONFLICT (inscription_id, operation) DO NOTHING
-                        RETURNING address, ticker, operation, amount
+                        RETURNING address, ticker, operation, amount, block_height
                     ),
                     balance_changes AS (
                         SELECT ticker, address,
@@ -215,21 +209,32 @@ pub async fn insert_operations<T: GenericClient>(
                                 WHEN operation = 'mint' OR operation = 'transfer_receive' THEN amount
                                 WHEN operation = 'transfer_send' THEN -1 * amount
                                 ELSE 0
-                            END AS total_balance
+                            END AS total_balance,
+                            block_height
                         FROM inserts
                     ),
                     grouped_balance_changes AS (
                         SELECT ticker, address, SUM(avail_balance) AS avail_balance, SUM(trans_balance) AS trans_balance,
-                            SUM(total_balance) AS total_balance
+                            SUM(total_balance) AS total_balance, MAX(block_height) AS block_height
                         FROM balance_changes
                         GROUP BY ticker, address
+                    ),
+                    balance_inserts AS (
+                        INSERT INTO balances (ticker, address, avail_balance, trans_balance, total_balance)
+                        (SELECT ticker, address, avail_balance, trans_balance, total_balance FROM grouped_balance_changes)
+                        ON CONFLICT (ticker, address) DO UPDATE SET
+                            avail_balance = balances.avail_balance + EXCLUDED.avail_balance,
+                            trans_balance = balances.trans_balance + EXCLUDED.trans_balance,
+                            total_balance = balances.total_balance + EXCLUDED.total_balance
+                        RETURNING ticker, address, avail_balance, trans_balance, total_balance,
+                            (SELECT MAX(block_height) FROM grouped_balance_changes) AS block_height
                     )
-                    INSERT INTO balances (ticker, address, avail_balance, trans_balance, total_balance)
-                    (SELECT ticker, address, avail_balance, trans_balance, total_balance FROM grouped_balance_changes)
-                    ON CONFLICT (ticker, address) DO UPDATE SET
-                        avail_balance = balances.avail_balance + EXCLUDED.avail_balance,
-                        trans_balance = balances.trans_balance + EXCLUDED.trans_balance,
-                        total_balance = balances.total_balance + EXCLUDED.total_balance
+                    INSERT INTO balances_history (ticker, address, block_height, avail_balance, trans_balance, total_balance)
+                    (SELECT ticker, address, block_height, avail_balance, trans_balance, total_balance FROM balance_inserts)
+                    ON CONFLICT (address, block_height, ticker) DO UPDATE SET
+                        avail_balance = EXCLUDED.avail_balance,
+                        trans_balance = EXCLUDED.trans_balance,
+                        total_balance = EXCLUDED.total_balance
                     ", utils::multi_row_query_param_str(chunk.len(), 15)),
                 &params,
             )
@@ -385,91 +390,6 @@ pub async fn update_token_minted_supplies<T: GenericClient>(
     Ok(())
 }
 
-async fn get_operations_at_block<T: GenericClient>(
-    block_height: u64,
-    client: &T,
-) -> Result<HashMap<u64, DbOperation>, String> {
-    let rows = client
-        .query(
-            "SELECT * FROM operations WHERE block_height = $1 AND operation <> 'transfer_receive'",
-            &[&PgNumericU64(block_height)],
-        )
-        .await
-        .map_err(|e| format!("get_inscriptions_at_block: {e}"))?;
-    let mut map = HashMap::new();
-    for row in rows.iter() {
-        let tx_index: PgNumericU64 = row.get("tx_index");
-        map.insert(tx_index.0, DbOperation::from_pg_row(row));
-    }
-    Ok(map)
-}
-
-/// Adds previously-indexed BRC-20 operation metadata to a `BitcoinBlockData` block.
-pub async fn augment_block_with_operations<T: GenericClient>(
-    block: &mut BitcoinBlockData,
-    client: &T,
-) -> Result<(), String> {
-    let mut token_map = HashMap::new();
-    let mut operation_map = get_operations_at_block(block.block_identifier.index, client).await?;
-    for tx in block.transactions.iter_mut() {
-        let Some(entry) = operation_map.remove(&(tx.metadata.index as u64)) else {
-            continue;
-        };
-        if token_map.get(&entry.ticker).is_none() {
-            let Some(row) = get_token(&entry.ticker, client).await? else {
-                unreachable!("BRC-20 token not found when processing operation");
-            };
-            token_map.insert(entry.ticker.clone(), row);
-        }
-        let token = token_map
-            .get(&entry.ticker)
-            .expect("Token not present in map");
-        let decimals = token.decimals.0;
-        match entry.operation.as_str() {
-            "deploy" => {
-                tx.metadata.brc20_operation = Some(Brc20Operation::Deploy(Brc20TokenDeployData {
-                    tick: token.display_ticker.clone(),
-                    max: u128_amount_to_decimals_str(token.max.0, decimals),
-                    lim: u128_amount_to_decimals_str(token.limit.0, decimals),
-                    dec: token.decimals.0.to_string(),
-                    address: token.address.clone(),
-                    inscription_id: token.inscription_id.clone(),
-                    self_mint: token.self_mint,
-                }));
-            }
-            "mint" => {
-                tx.metadata.brc20_operation = Some(Brc20Operation::Mint(Brc20BalanceData {
-                    tick: token.display_ticker.clone(),
-                    amt: u128_amount_to_decimals_str(entry.amount.0, decimals),
-                    address: entry.address.clone(),
-                    inscription_id: entry.inscription_id.clone(),
-                }));
-            }
-            "transfer" => {
-                tx.metadata.brc20_operation = Some(Brc20Operation::Transfer(Brc20BalanceData {
-                    tick: token.display_ticker.clone(),
-                    amt: u128_amount_to_decimals_str(entry.amount.0, decimals),
-                    address: entry.address.clone(),
-                    inscription_id: entry.inscription_id.clone(),
-                }));
-            }
-            "transfer_send" => {
-                tx.metadata.brc20_operation =
-                    Some(Brc20Operation::TransferSend(Brc20TransferData {
-                        tick: token.display_ticker.clone(),
-                        amt: u128_amount_to_decimals_str(entry.amount.0, decimals),
-                        sender_address: entry.address.clone(),
-                        receiver_address: entry.to_address.unwrap().clone(),
-                        inscription_id: entry.inscription_id,
-                    }));
-            }
-            // `transfer_receive` ops are not reflected in transaction metadata, they are sent as part of `transfer_send`.
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
 pub async fn rollback_block_operations<T: GenericClient>(
     block_height: u64,
     client: &T,
@@ -563,7 +483,8 @@ pub async fn rollback_block_operations<T: GenericClient>(
                     WHERE ops.operation = counts_by_operation.operation
                 )
             ),
-            token_deletes AS (DELETE FROM tokens WHERE block_height = $1)
+            token_deletes AS (DELETE FROM tokens WHERE block_height = $1),
+            balances_history_deletes AS (DELETE FROM balances_history WHERE block_height = $1)
             DELETE FROM operations WHERE block_height = $1",
             &[&PgNumericU64(block_height)],
         )
@@ -574,20 +495,23 @@ pub async fn rollback_block_operations<T: GenericClient>(
 
 #[cfg(test)]
 mod test {
-    use deadpool_postgres::GenericClient;
+    use std::collections::HashMap;
+
     use chainhook_postgres::{
         pg_begin, pg_pool_client,
         types::{PgBigIntU32, PgNumericU128, PgNumericU64, PgSmallIntU8},
+        FromPgRow,
     };
     use chainhook_types::{
         BlockIdentifier, OrdinalInscriptionTransferDestination, TransactionIdentifier,
     };
+    use deadpool_postgres::GenericClient;
 
     use crate::{
         core::meta_protocols::brc20::{
-            brc20_pg::{self, get_operations_at_block, get_token_minted_supply},
+            brc20_pg::{self, get_token_minted_supply},
             cache::Brc20MemoryCache,
-            models::DbToken,
+            models::{DbOperation, DbToken},
             test_utils::{Brc20RevealBuilder, Brc20TransferBuilder},
             verifier::{
                 VerifiedBrc20BalanceData, VerifiedBrc20TokenDeployData, VerifiedBrc20TransferData,
@@ -658,6 +582,48 @@ mod test {
         let trans_balance: PgNumericU128 = row.get("trans_balance");
         let total_balance: PgNumericU128 = row.get("total_balance");
         Some((avail_balance, trans_balance, total_balance))
+    }
+
+    async fn get_address_token_balance_at_block<T: GenericClient>(
+        address: &str,
+        ticker: &str,
+        block_height: u64,
+        client: &T,
+    ) -> Option<(PgNumericU128, PgNumericU128, PgNumericU128)> {
+        let row = client
+            .query_opt(
+                "SELECT avail_balance, trans_balance, total_balance FROM balances_history
+                WHERE address = $1 AND ticker = $2 AND block_height = $3",
+                &[&address, &ticker, &PgNumericU64(block_height)],
+            )
+            .await
+            .unwrap();
+        let Some(row) = row else {
+            return None;
+        };
+        let avail_balance: PgNumericU128 = row.get("avail_balance");
+        let trans_balance: PgNumericU128 = row.get("trans_balance");
+        let total_balance: PgNumericU128 = row.get("total_balance");
+        Some((avail_balance, trans_balance, total_balance))
+    }
+
+    async fn get_operations_at_block<T: GenericClient>(
+        block_height: u64,
+        client: &T,
+    ) -> Result<HashMap<u64, DbOperation>, String> {
+        let rows = client
+            .query(
+                "SELECT * FROM operations WHERE block_height = $1 AND operation <> 'transfer_receive'",
+                &[&PgNumericU64(block_height)],
+            )
+            .await
+            .map_err(|e| format!("get_inscriptions_at_block: {e}"))?;
+        let mut map = HashMap::new();
+        for row in rows.iter() {
+            let tx_index: PgNumericU64 = row.get("tx_index");
+            map.insert(tx_index.0, DbOperation::from_pg_row(row));
+        }
+        Ok(map)
     }
 
     #[tokio::test]
@@ -792,6 +758,20 @@ mod test {
                     )
                     .await
                 );
+                assert_eq!(
+                    Some((
+                        PgNumericU128(1000_000000000000000000),
+                        PgNumericU128(0),
+                        PgNumericU128(1000_000000000000000000)
+                    )),
+                    get_address_token_balance_at_block(
+                        "324A7GHA2azecbVBAFy4pzEhcPT1GjbUAp",
+                        "pepe",
+                        800001,
+                        &client
+                    )
+                    .await
+                );
             }
             // Transfer
             {
@@ -842,6 +822,20 @@ mod test {
                     get_address_token_balance(
                         "324A7GHA2azecbVBAFy4pzEhcPT1GjbUAp",
                         "pepe",
+                        &client
+                    )
+                    .await
+                );
+                assert_eq!(
+                    Some((
+                        PgNumericU128(500_000000000000000000),
+                        PgNumericU128(500_000000000000000000),
+                        PgNumericU128(1000_000000000000000000)
+                    )),
+                    get_address_token_balance_at_block(
+                        "324A7GHA2azecbVBAFy4pzEhcPT1GjbUAp",
+                        "pepe",
+                        800002,
                         &client
                     )
                     .await
@@ -915,6 +909,34 @@ mod test {
                     get_address_token_balance(
                         "bc1pngjqgeamkmmhlr6ft5yllgdmfllvcvnw5s7ew2ler3rl0z47uaesrj6jte",
                         "pepe",
+                        &client
+                    )
+                    .await
+                );
+                assert_eq!(
+                    Some((
+                        PgNumericU128(500_000000000000000000),
+                        PgNumericU128(0),
+                        PgNumericU128(500_000000000000000000)
+                    )),
+                    get_address_token_balance_at_block(
+                        "324A7GHA2azecbVBAFy4pzEhcPT1GjbUAp",
+                        "pepe",
+                        800003,
+                        &client
+                    )
+                    .await
+                );
+                assert_eq!(
+                    Some((
+                        PgNumericU128(500_000000000000000000),
+                        PgNumericU128(0),
+                        PgNumericU128(500_000000000000000000)
+                    )),
+                    get_address_token_balance_at_block(
+                        "bc1pngjqgeamkmmhlr6ft5yllgdmfllvcvnw5s7ew2ler3rl0z47uaesrj6jte",
+                        "pepe",
+                        800003,
                         &client
                     )
                     .await
