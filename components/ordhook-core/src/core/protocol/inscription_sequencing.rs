@@ -401,7 +401,7 @@ pub async fn update_block_inscriptions_with_consensus_sequence_data(
     // Check if we've previously inscribed over any satoshi being inscribed to in this new block. This would be a reinscription.
     let mut reinscriptions_data =
         ordinals_pg::get_reinscriptions_for_block(inscriptions_data, db_tx).await?;
-    // Keep a reference of inscribed satoshis that fall outside of this block's total sats. These would be unbound inscriptions.
+    // Keep a reference of inscribed satoshis that will go towards miner fees. These would be unbound inscriptions.
     let mut sat_overflows = VecDeque::new();
     let network = get_bitcoin_network(&block.metadata.network);
     let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
@@ -427,19 +427,29 @@ pub async fn update_block_inscriptions_with_consensus_sequence_data(
         .await?;
     }
 
+    // Assign inscription numbers to remaining unbound inscriptions.
     while let Some((tx_index, op_index)) = sat_overflows.pop_front() {
         let OrdinalOperation::InscriptionRevealed(ref mut inscription_data) =
             block.transactions[tx_index].metadata.ordinal_operations[op_index]
         else {
             continue;
         };
+
         let is_cursed = inscription_data.curse_type.is_some();
         let inscription_number = sequence_cursor
             .pick_next(is_cursed, block.block_identifier.index, &network, db_tx)
             .await?;
         inscription_data.inscription_number = inscription_number;
-
         sequence_cursor.increment(is_cursed, db_tx).await?;
+
+        // Also assign an unbound sequence number and set outpoint to all zeros, just like `ord`.
+        let unbound_sequence = sequence_cursor.increment_unbound(db_tx).await?;
+        inscription_data.satpoint_post_inscription = format!(
+            "0000000000000000000000000000000000000000000000000000000000000000:0:{unbound_sequence}"
+        );
+        inscription_data.ordinal_offset = unbound_sequence as u64;
+        inscription_data.unbound_sequence = Some(unbound_sequence);
+
         try_info!(
             ctx,
             "Unbound inscription {} (#{}) detected on Satoshi {} (block #{}, {} transfers)",
@@ -727,6 +737,7 @@ mod test {
                                 satpoint_post_inscription: "".into(),
                                 curse_type: if cursed { Some(OrdinalInscriptionCurseType::Generic) } else { None },
                                 charms: 0,
+                                unbound_sequence: None,
                             },
                         ))
                         .build(),

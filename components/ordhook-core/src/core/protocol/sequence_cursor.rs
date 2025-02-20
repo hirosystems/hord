@@ -16,6 +16,7 @@ pub struct SequenceCursor {
     pos_cursor: Option<i64>,
     neg_cursor: Option<i64>,
     jubilee_cursor: Option<i64>,
+    unbound_cursor: Option<i64>,
     current_block_height: u64,
 }
 
@@ -25,6 +26,7 @@ impl SequenceCursor {
             jubilee_cursor: None,
             pos_cursor: None,
             neg_cursor: None,
+            unbound_cursor: None,
             current_block_height: 0,
         }
     }
@@ -33,6 +35,7 @@ impl SequenceCursor {
         self.pos_cursor = None;
         self.neg_cursor = None;
         self.jubilee_cursor = None;
+        self.unbound_cursor = None;
         self.current_block_height = 0;
     }
 
@@ -74,6 +77,15 @@ impl SequenceCursor {
             self.increment_pos_classic(client).await?;
         };
         Ok(())
+    }
+
+    pub async fn increment_unbound<T: GenericClient>(
+        &mut self,
+        client: &T,
+    ) -> Result<i64, String> {
+        let next = self.pick_next_unbound(client).await?;
+        self.unbound_cursor = Some(next);
+        Ok(next)
     }
 
     async fn pick_next_pos_classic<T: GenericClient>(&mut self, client: &T) -> Result<i64, String> {
@@ -119,6 +131,21 @@ impl SequenceCursor {
                 }
             }
             Some(value) => Ok(value - 1),
+        }
+    }
+
+    async fn pick_next_unbound<T: GenericClient>(&mut self, client: &T) -> Result<i64, String> {
+        match self.unbound_cursor {
+            None => {
+                match ordinals_pg::get_highest_unbound_inscription_sequence(client).await? {
+                    Some(unbound_sequence) => {
+                        self.unbound_cursor = Some(unbound_sequence);
+                        Ok(unbound_sequence + 1)
+                    }
+                    _ => Ok(0),
+                }
+            }
+            Some(value) => Ok(value + 1),
         }
     }
 

@@ -30,7 +30,7 @@ pub fn parse_output_and_offset_from_satpoint(
     let parts: Vec<&str> = satpoint.split(':').collect();
     let tx_id = parts
         .get(0)
-        .ok_or("get_output_and_offset_from_satpoint: inscription_id not found")?;
+        .ok_or("get_output_and_offset_from_satpoint: tx_id not found")?;
     let output = parts
         .get(1)
         .ok_or("get_output_and_offset_from_satpoint: output not found")?;

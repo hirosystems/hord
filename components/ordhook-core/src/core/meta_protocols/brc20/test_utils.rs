@@ -89,6 +89,7 @@ impl Brc20RevealBuilder {
                 "9bb2314d666ae0b1db8161cb373fcc1381681f71445c4e0335aa80ea9c37fcdd:0:0".to_string(),
             curse_type: None,
             charms: 0,
+            unbound_sequence: None,
         }
     }
 }
