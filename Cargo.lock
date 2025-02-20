@@ -568,6 +568,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "cli"
+version = "2.2.5"
+dependencies = [
+ "chainhook-sdk",
+ "chainhook-types",
+ "clap",
+ "clap_generate",
+ "ctrlc",
+ "hex",
+ "hiro-system-kit",
+ "num_cpus",
+ "ordhook",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tcmalloc2",
+ "toml 0.5.11",
+]
+
+[[package]]
 name = "cookie"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2099,27 +2120,6 @@ dependencies = [
  "threadpool",
  "tokio",
  "tokio-postgres",
-]
-
-[[package]]
-name = "ordhook-cli"
-version = "2.2.5"
-dependencies = [
- "chainhook-sdk",
- "chainhook-types",
- "clap",
- "clap_generate",
- "ctrlc",
- "hex",
- "hiro-system-kit",
- "num_cpus",
- "ordhook",
- "reqwest 0.11.27",
- "serde",
- "serde_derive",
- "serde_json",
- "tcmalloc2",
- "toml 0.5.11",
 ]
 
 [[package]]

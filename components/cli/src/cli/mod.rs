@@ -293,6 +293,10 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
     match opts.command {
         Command::Service(subcmd) => match subcmd {
             ServiceCommand::Start(cmd) => {
+                // TODO: add handling from the config to handle:
+                // 1. ordinals
+                // 2. runes
+                // 3. ordinals and runes
                 let maintenance_enabled =
                     std::env::var("ORDHOOK_MAINTENANCE").unwrap_or("0".into());
                 if maintenance_enabled.eq("1") {
