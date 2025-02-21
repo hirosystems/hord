@@ -54,7 +54,7 @@ impl Service {
             config: config.clone(),
             ctx: ctx.clone(),
             pg_pools: PgConnectionPools {
-                ordinals: pg_pool(&config.ordinals_db).unwrap(),
+                ordinals: pg_pool(&config.ordinals_db.clone().unwrap()).unwrap(),
                 brc20: match (config.meta_protocols.brc20, &config.brc20_db) {
                     (true, Some(brc20_db)) => Some(pg_pool(&brc20_db).unwrap()),
                     _ => None,
