@@ -98,6 +98,20 @@ pub async fn get_lowest_cursed_classic_inscription_number<T: GenericClient>(
     Ok(min)
 }
 
+pub async fn get_highest_unbound_inscription_sequence<T: GenericClient>(
+    client: &T,
+) -> Result<Option<i64>, String> {
+    let row = client
+        .query_opt("SELECT MAX(unbound_sequence) AS max FROM inscriptions", &[])
+        .await
+        .map_err(|e| format!("get_highest_unbound_inscription_sequence: {e}"))?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let max: Option<i64> = row.get("max");
+    Ok(max)
+}
+
 pub async fn get_reinscriptions_for_block<T: GenericClient>(
     inscriptions_data: &mut BTreeMap<(TransactionIdentifier, usize, u64), TraversalResult>,
     client: &T,
@@ -261,15 +275,16 @@ async fn insert_inscriptions<T: GenericClient>(
             params.push(&row.delegate);
             params.push(&row.timestamp);
             params.push(&row.charms);
+            params.push(&row.unbound_sequence);
         }
         client
             .query(
                 &format!("INSERT INTO inscriptions
                     (inscription_id, ordinal_number, number, classic_number, block_height, block_hash, tx_id, tx_index, address,
                     mime_type, content_type, content_length, content, fee, curse_type, recursive, input_index, pointer, metadata,
-                    metaprotocol, delegate, timestamp, charms)
+                    metaprotocol, delegate, timestamp, charms, unbound_sequence)
                     VALUES {}
-                    ON CONFLICT (number) DO NOTHING", utils::multi_row_query_param_str(chunk.len(), 23)),
+                    ON CONFLICT (number) DO NOTHING", utils::multi_row_query_param_str(chunk.len(), 24)),
                 &params,
             )
             .await
@@ -1206,6 +1221,7 @@ mod test {
                                     satpoint_post_inscription: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0".to_string(),
                                     curse_type: None,
                                     charms: 0,
+                                    unbound_sequence: None,
                                 },
                             ))
                             .build()

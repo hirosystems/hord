@@ -103,6 +103,7 @@ pub fn parse_inscriptions_from_witness(
             satpoint_post_inscription: format!(""),
             curse_type,
             charms: 0,
+            unbound_sequence: None,
         };
         inscriptions.push((reveal_data, envelope.payload));
     }

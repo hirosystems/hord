@@ -33,6 +33,7 @@ pub struct DbInscription {
     pub delegate: Option<String>,
     pub timestamp: PgBigIntU32,
     pub charms: PgBigIntU32,
+    pub unbound_sequence: Option<i64>,
 }
 
 impl DbInscription {
@@ -84,6 +85,7 @@ impl DbInscription {
             delegate: reveal.delegate.clone(),
             timestamp: PgBigIntU32(timestamp),
             charms: PgBigIntU32(reveal.charms as u32),
+            unbound_sequence: reveal.unbound_sequence,
         }
     }
 }
@@ -114,6 +116,7 @@ impl FromPgRow for DbInscription {
             delegate: row.get("delegate"),
             timestamp: row.get("timestamp"),
             charms: row.get("charms"),
+            unbound_sequence: row.get("unbound_sequence"),
         }
     }
 }

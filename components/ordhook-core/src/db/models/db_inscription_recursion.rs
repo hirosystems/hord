@@ -62,6 +62,7 @@ mod test {
             satpoint_post_inscription: "e47a70a218dfa746ba410b1c057403bb481523d830562fd8dec61ec4d2915e5f:0:0".to_string(),
             curse_type: None,
             charms: 0,
+            unbound_sequence: None,
         };
         let recursions = DbInscriptionRecursion::from_reveal(&reveal).unwrap();
         assert_eq!(2, recursions.len());
