@@ -16,6 +16,7 @@ use dashmap::DashMap;
 use deadpool_postgres::Transaction;
 use fxhash::FxHasher;
 
+use crate::core::protocol::satoshi_tracking::UNBOUND_INSCRIPTION_SATPOINT;
 use crate::{
     config::Config,
     core::resolve_absolute_pointer,
@@ -23,7 +24,7 @@ use crate::{
     try_debug, try_error, try_info,
     utils::format_inscription_id,
 };
-use ord::{charm::Charm, height::Height, sat::Sat};
+use ord::{charm::Charm, sat::Sat};
 
 use std::sync::mpsc::channel;
 
@@ -404,9 +405,6 @@ pub async fn update_block_inscriptions_with_consensus_sequence_data(
     // Keep a reference of inscribed satoshis that will go towards miner fees. These would be unbound inscriptions.
     let mut sat_overflows = VecDeque::new();
     let network = get_bitcoin_network(&block.metadata.network);
-    let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
-    let coinbase_tx = &block.transactions[0].clone();
-    let mut cumulated_fees = 0u64;
 
     for (tx_index, tx) in block.transactions.iter_mut().enumerate() {
         update_tx_inscriptions_with_consensus_sequence_data(
@@ -416,9 +414,6 @@ pub async fn update_block_inscriptions_with_consensus_sequence_data(
             sequence_cursor,
             &network,
             inscriptions_data,
-            coinbase_tx,
-            coinbase_subsidy,
-            &mut cumulated_fees,
             &mut sat_overflows,
             &mut reinscriptions_data,
             db_tx,
@@ -444,9 +439,8 @@ pub async fn update_block_inscriptions_with_consensus_sequence_data(
 
         // Also assign an unbound sequence number and set outpoint to all zeros, just like `ord`.
         let unbound_sequence = sequence_cursor.increment_unbound(db_tx).await?;
-        inscription_data.satpoint_post_inscription = format!(
-            "0000000000000000000000000000000000000000000000000000000000000000:0:{unbound_sequence}"
-        );
+        inscription_data.satpoint_post_inscription =
+            format!("{UNBOUND_INSCRIPTION_SATPOINT}:{unbound_sequence}");
         inscription_data.ordinal_offset = unbound_sequence as u64;
         inscription_data.unbound_sequence = Some(unbound_sequence);
 
@@ -474,9 +468,6 @@ async fn update_tx_inscriptions_with_consensus_sequence_data(
     sequence_cursor: &mut SequenceCursor,
     network: &Network,
     inscriptions_data: &mut BTreeMap<(TransactionIdentifier, usize, u64), TraversalResult>,
-    coinbase_tx: &BitcoinTransactionData,
-    coinbase_subsidy: u64,
-    cumulated_fees: &mut u64,
     sats_overflows: &mut VecDeque<(usize, usize)>,
     reinscriptions_data: &mut HashMap<u64, String>,
     db_tx: &Transaction<'_>,
@@ -569,16 +560,8 @@ async fn update_tx_inscriptions_with_consensus_sequence_data(
             }
         }
 
-        let (destination, satpoint_post_transfer, output_value) = compute_satpoint_post_transfer(
-            &&*tx,
-            input_index,
-            relative_offset,
-            network,
-            coinbase_tx,
-            coinbase_subsidy,
-            cumulated_fees,
-            ctx,
-        );
+        let (destination, satpoint_post_transfer, output_value) =
+            compute_satpoint_post_transfer(&&*tx, input_index, relative_offset, network, ctx);
         inscription.satpoint_post_inscription = satpoint_post_transfer;
         inscription_subindex += 1;
 
@@ -647,10 +630,149 @@ mod test {
             protocol::{satoshi_numbering::TraversalResult, sequence_cursor::SequenceCursor},
             test_builders::{TestBlockBuilder, TestTransactionBuilder},
         },
-        db::{ordinals_pg, pg_reset_db, pg_test_connection, pg_test_connection_pool},
+        db::{
+            ordinals_pg::{self, insert_block},
+            pg_reset_db, pg_test_connection, pg_test_connection_pool,
+        },
     };
 
     use super::update_block_inscriptions_with_consensus_sequence_data;
+
+    #[test_case(None => Ok(("0000000000000000000000000000000000000000000000000000000000000000:0:0".into(), Some(0))); "first unbound sequence")]
+    #[test_case(Some(230) => Ok(("0000000000000000000000000000000000000000000000000000000000000000:0:231".into(), Some(231))); "next unbound sequence")]
+    #[tokio::test]
+    async fn unbound_inscription_sequence(
+        curr_sequence: Option<i64>,
+    ) -> Result<(String, Option<i64>), String> {
+        let ctx = Context::empty();
+        let mut sequence_cursor = SequenceCursor::new();
+        let mut cache_l1 = BTreeMap::new();
+        let tx_id = TransactionIdentifier {
+            hash: "0xb4722ad74e7092a194e367f2ec0609994ef7a006db4f9b9d055b46cfb6514e06".into(),
+        };
+        let input_index = 1;
+
+        cache_l1.insert(
+            (tx_id.clone(), input_index, 0),
+            TraversalResult {
+                inscription_number: OrdinalInscriptionNumber {
+                    classic: 0,
+                    jubilee: 0,
+                },
+                inscription_input_index: input_index,
+                transaction_identifier_inscription: tx_id.clone(),
+                ordinal_number: 817263817263,
+                transfers: 0,
+            },
+        );
+        let mut pg_client = pg_test_connection().await;
+        ordinals_pg::migrate(&mut pg_client).await?;
+        let result = {
+            let mut ord_client = pg_pool_client(&pg_test_connection_pool()).await?;
+            let client = pg_begin(&mut ord_client).await?;
+
+            if let Some(curr_sequence) = curr_sequence {
+                // Simulate previous unbound sequence
+                let mut tx = TestTransactionBuilder::new_with_operation().build();
+                if let OrdinalOperation::InscriptionRevealed(data) =
+                    &mut tx.metadata.ordinal_operations[0]
+                {
+                    data.unbound_sequence = Some(curr_sequence);
+                };
+                let block = TestBlockBuilder::new().transactions(vec![tx]).build();
+                insert_block(&block, &client).await?;
+            }
+
+            // Insert new block
+            let mut block = TestBlockBuilder::new()
+                .height(878878)
+                // Coinbase
+                .add_transaction(TestTransactionBuilder::new().build())
+                .add_transaction(
+                    TestTransactionBuilder::new()
+                        .hash(tx_id.hash.clone())
+                        // Normal input
+                        .add_input(TxIn {
+                            previous_output: OutPoint {
+                                txid: TransactionIdentifier { hash: "0xf181aa98f2572879bd02278c72c83c7eaac2db82af713d1d239fc41859b2a26e".into() },
+                                vout: 0,
+                                value: 8000,
+                                block_height: 884200,
+                            },
+                            script_sig: "0x00".into(),
+                            sequence: 0,
+                            witness: vec!["0x00".into()],
+                        })
+                        // Goes to fees
+                        .add_input(TxIn {
+                            previous_output: OutPoint {
+                                txid: TransactionIdentifier { hash: "0xf181aa98f2572879bd02278c72c83c7eaac2db82af713d1d239fc41859b2a26e".into() },
+                                vout: 1,
+                                value: 250,
+                                block_height: 884200,
+                            },
+                            script_sig: "0x00".into(),
+                            sequence: 0,
+                            witness: vec!["0x00".into()],
+                        })
+                        .add_output(TxOut { value: 8000, script_pubkey: "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into() })
+                        .add_ordinal_operation(OrdinalOperation::InscriptionRevealed(
+                            OrdinalInscriptionRevealData {
+                                content_bytes: "0x101010".into(),
+                                content_type: "text/plain".into(),
+                                content_length: 3,
+                                inscription_number: OrdinalInscriptionNumber {
+                                    classic: 0,
+                                    jubilee: 0,
+                                },
+                                inscription_fee: 0,
+                                inscription_output_value: 0,
+                                inscription_id: "".into(),
+                                inscription_input_index: input_index,
+                                inscription_pointer: Some(8000),
+                                inscriber_address: Some("bc1pd99n363yjz8gd2zhy7gstsmk4qkdz4t029j44wewhmee3dta429sm5xqrd".into()),
+                                delegate: None,
+                                metaprotocol: None,
+                                metadata: None,
+                                parents: vec![],
+                                ordinal_number: 0,
+                                ordinal_block_height: 0,
+                                ordinal_offset: 0,
+                                tx_index: 1,
+                                transfers_pre_inscription: 0,
+                                satpoint_post_inscription: "".into(),
+                                curse_type: Some(OrdinalInscriptionCurseType::DuplicateField),
+                                charms: 0,
+                                unbound_sequence: None,
+                            },
+                        ))
+                        .build(),
+                )
+                .build();
+
+            update_block_inscriptions_with_consensus_sequence_data(
+                &mut block,
+                &mut sequence_cursor,
+                &mut cache_l1,
+                &client,
+                &ctx,
+            )
+            .await?;
+
+            let result = &block.transactions[1].metadata.ordinal_operations[0];
+            let data = match result {
+                OrdinalOperation::InscriptionRevealed(data) => data,
+                _ => unreachable!(),
+            };
+            Ok((
+                data.satpoint_post_inscription.clone(),
+                data.unbound_sequence,
+            ))
+        };
+        pg_reset_db(&mut pg_client).await?;
+
+        result
+    }
 
     #[test_case((884207, false, 1262349832364434, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![]); "common sat")]
     #[test_case((884207, false, 0, "0x5120694b38ea24908e86a857279105c376a82cd1556f51655abb2ebef398b57daa8b".into()) => Ok(vec![Charm::Coin, Charm::Mythic, Charm::Palindrome]); "mythic sat")]
@@ -754,12 +876,10 @@ mod test {
             .await?;
 
             let result = &block.transactions[1].metadata.ordinal_operations[0];
-            // println!("{:?}", result);
             let charms = match result {
                 OrdinalOperation::InscriptionRevealed(data) => data.charms,
                 _ => unreachable!(),
             };
-            // println!("{:?}", Charm::charms(charms));
             Ok(Charm::charms(charms))
         };
         pg_reset_db(&mut pg_client).await?;

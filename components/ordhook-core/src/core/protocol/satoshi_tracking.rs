@@ -14,9 +14,11 @@ use crate::{
     try_info,
     utils::format_outpoint_to_watch,
 };
-use ord::height::Height;
 
 use super::inscription_sequencing::get_bitcoin_network;
+
+pub const UNBOUND_INSCRIPTION_SATPOINT: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000:0";
 
 #[derive(Clone, Debug, Ord, PartialOrd, PartialEq, Eq)]
 pub struct WatchedSatpoint {
@@ -50,18 +52,12 @@ pub async fn augment_block_with_transfers(
     ctx: &Context,
 ) -> Result<(), String> {
     let network = get_bitcoin_network(&block.metadata.network);
-    let coinbase_subsidy = Height(block.block_identifier.index as u32).subsidy();
-    let coinbase_tx = &block.transactions[0].clone();
-    let mut cumulated_fees = 0;
     for (tx_index, tx) in block.transactions.iter_mut().enumerate() {
         let _ = augment_transaction_with_ordinal_transfers(
             tx,
             tx_index,
             &block.block_identifier,
             &network,
-            &coinbase_tx,
-            coinbase_subsidy,
-            &mut cumulated_fees,
             db_tx,
             ctx,
         )
@@ -75,9 +71,6 @@ pub fn compute_satpoint_post_transfer(
     input_index: usize,
     relative_pointer_value: u64,
     network: &Network,
-    coinbase_tx: &BitcoinTransactionData,
-    coinbase_subsidy: u64,
-    cumulated_fees: &mut u64,
     ctx: &Context,
 ) -> (OrdinalInscriptionTransferDestination, String, Option<u64>) {
     let inputs: Vec<u64> = tx
@@ -131,37 +124,11 @@ pub fn compute_satpoint_post_transfer(
                     Some(tx.metadata.outputs[output_index].value),
                 )
             }
-            SatPosition::Fee(offset) => {
-                // Get Coinbase TX
-                let total_offset = coinbase_subsidy + *cumulated_fees + offset;
-                let outputs = coinbase_tx
-                    .metadata
-                    .outputs
-                    .iter()
-                    .map(|o| o.value)
-                    .collect();
-                let post_transfer_data = compute_next_satpoint_data(
-                    0,
-                    &vec![total_offset],
-                    &outputs,
-                    total_offset,
-                    Some(ctx),
-                );
-
-                // Identify the correct output
-                let (output_index, offset) = match post_transfer_data {
-                    SatPosition::Output(pos) => pos,
-                    _ => {
-                        try_info!(ctx, "unable to locate satoshi in coinbase outputs");
-                        (0, total_offset)
-                    }
-                };
-
-                let outpoint =
-                    format_outpoint_to_watch(&coinbase_tx.transaction_identifier, output_index);
+            SatPosition::Fee(_) => {
+                // Unbound inscription satpoints will be updated later with an unbound sequence number.
                 (
-                    outpoint,
-                    offset,
+                    UNBOUND_INSCRIPTION_SATPOINT.into(),
+                    0,
                     OrdinalInscriptionTransferDestination::SpentInFees,
                     None,
                 )
@@ -181,9 +148,6 @@ pub async fn augment_transaction_with_ordinal_transfers(
     tx_index: usize,
     block_identifier: &BlockIdentifier,
     network: &Network,
-    coinbase_tx: &BitcoinTransactionData,
-    coinbase_subsidy: u64,
-    cumulated_fees: &mut u64,
     db_tx: &Transaction<'_>,
     ctx: &Context,
 ) -> Result<Vec<OrdinalInscriptionTransferData>, String> {
@@ -224,9 +188,6 @@ pub async fn augment_transaction_with_ordinal_transfers(
                     input_index,
                     watched_satpoint.offset,
                     network,
-                    coinbase_tx,
-                    coinbase_subsidy,
-                    cumulated_fees,
                     ctx,
                 );
 
@@ -253,7 +214,6 @@ pub async fn augment_transaction_with_ordinal_transfers(
                 .push(OrdinalOperation::InscriptionTransferred(transfer_data));
         }
     }
-    *cumulated_fees += tx.metadata.fee;
 
     Ok(transfers)
 }
@@ -275,21 +235,10 @@ mod test {
             .add_input(TestTxInBuilder::new().value(10_000).build())
             .add_output(TestTxOutBuilder::new().value(2_000).build())
             .build();
-        let coinbase_tx = &TestTransactionBuilder::new()
-            .add_output(TestTxOutBuilder::new().value(312_500_000 + 5_000).build())
-            .build();
 
-        let (destination, satpoint, value) = compute_satpoint_post_transfer(
-            tx,
-            0,
-            // This offset will make it go to fees.
-            5_000,
-            &Network::Bitcoin,
-            coinbase_tx,
-            312_500_000,
-            &mut 0,
-            &ctx,
-        );
+        // This 5000 offset will make it go to fees.
+        let (destination, satpoint, value) =
+            compute_satpoint_post_transfer(tx, 0, 5_000, &Network::Bitcoin, &ctx);
 
         assert_eq!(
             destination,
@@ -297,8 +246,7 @@ mod test {
         );
         assert_eq!(
             satpoint,
-            "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:312503000"
-                .to_string()
+            "0000000000000000000000000000000000000000000000000000000000000000:0:0"
         );
         assert_eq!(value, None);
     }
@@ -316,20 +264,9 @@ mod test {
                 .build()
             )
             .build();
-        let coinbase_tx = &TestTransactionBuilder::new()
-            .add_output(TestTxOutBuilder::new().value(312_500_000).build())
-            .build();
 
-        let (destination, satpoint, value) = compute_satpoint_post_transfer(
-            tx,
-            0,
-            5_000,
-            &Network::Bitcoin,
-            coinbase_tx,
-            312_500_000,
-            &mut 0,
-            &ctx,
-        );
+        let (destination, satpoint, value) =
+            compute_satpoint_post_transfer(tx, 0, 5_000, &Network::Bitcoin, &ctx);
 
         assert_eq!(
             destination,
