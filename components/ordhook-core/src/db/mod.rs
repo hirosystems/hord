@@ -9,11 +9,12 @@ use chainhook_sdk::utils::Context;
 
 use crate::{config::Config, core::meta_protocols::brc20::brc20_pg, try_info, try_warn};
 
+// TODO: This should handle both ordinals and runes
 pub async fn migrate_dbs(config: &Config, ctx: &Context) -> Result<(), String> {
-    {
+    if let Some(ordinals_db) = &config.ordinals_db {
         try_info!(ctx, "Running ordinals DB migrations");
-        let mut pg_client = pg_connect_with_retry(&config.ordinals_db).await;
-        ordinals_pg::migrate(&mut pg_client).await?;
+        let mut pg_client = pg_connect_with_retry(ordinals_db).await;
+        ordinals_pg::migrate(&mut pg_client).await?;   
     }
     if let (Some(brc20_db), true) = (&config.brc20_db, config.meta_protocols.brc20) {
         try_info!(ctx, "Running brc20 DB migrations");
@@ -24,9 +25,9 @@ pub async fn migrate_dbs(config: &Config, ctx: &Context) -> Result<(), String> {
 }
 
 pub async fn reset_dbs(config: &Config, ctx: &Context) -> Result<(), String> {
-    {
+    if let Some(ordinals_db) = &config.ordinals_db {
         try_warn!(ctx, "Resetting ordinals DB");
-        let mut pg_client = pg_connect_with_retry(&config.ordinals_db).await;
+        let mut pg_client = pg_connect_with_retry(ordinals_db).await;
         pg_reset_db(&mut pg_client).await?;
     }
     if let (Some(brc20_db), true) = (&config.brc20_db, config.meta_protocols.brc20) {

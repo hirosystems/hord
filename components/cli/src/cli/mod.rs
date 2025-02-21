@@ -293,10 +293,6 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
     match opts.command {
         Command::Service(subcmd) => match subcmd {
             ServiceCommand::Start(cmd) => {
-                // TODO: add handling from the config to handle:
-                // 1. ordinals
-                // 2. runes
-                // 3. ordinals and runes
                 let maintenance_enabled =
                     std::env::var("ORDHOOK_MAINTENANCE").unwrap_or("0".into());
                 if maintenance_enabled.eq("1") {
@@ -304,10 +300,13 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
                     sleep(Duration::from_secs(u64::MAX))
                 }
 
+                // TODO(asuciu): update from default values after runes integration in-place
                 let config = ConfigFile::default(
                     cmd.regtest,
                     cmd.testnet,
                     cmd.mainnet,
+                    true, 
+                    false,
                     &cmd.config_path,
                     &None,
                 )?;
@@ -328,7 +327,7 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
                 use std::fs::File;
                 use std::io::Write;
                 let config =
-                    ConfigFile::default(cmd.regtest, cmd.testnet, cmd.mainnet, &None, &None)?;
+                    ConfigFile::default(cmd.regtest, cmd.testnet, cmd.mainnet, true, false, &None, &None)?;
                 let config_content = generate_config(&config.network.bitcoin_network);
                 let mut file_path = PathBuf::new();
                 file_path.push("Ordhook.toml");
@@ -340,19 +339,19 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
             }
         },
         Command::Index(IndexCommand::New(cmd)) => {
-            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            let config = ConfigFile::default(false, false, false, false, false, &cmd.config_path, &None)?;
             migrate_dbs(&config, ctx).await?;
             open_blocks_db_with_retry(true, &config, ctx);
         }
         Command::Index(IndexCommand::Sync(cmd)) => {
-            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            let config = ConfigFile::default(false, false, false, false, false, &cmd.config_path, &None)?;
             migrate_dbs(&config, ctx).await?;
             let service = Service::new(&config, ctx);
             service.catch_up_to_bitcoin_chain_tip().await?;
         }
         Command::Index(IndexCommand::Repair(subcmd)) => match subcmd {
             RepairCommand::Blocks(cmd) => {
-                let mut config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+                let mut config = ConfigFile::default(false, false, false, false, false, &cmd.config_path, &None)?;
                 if let Some(network_threads) = cmd.network_threads {
                     config.resources.bitcoind_rpc_threads = network_threads;
                 }
@@ -385,7 +384,7 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
             }
         },
         Command::Index(IndexCommand::Check(cmd)) => {
-            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            let config = ConfigFile::default(false, false, false, false, false, &cmd.config_path, &None)?;
             {
                 let blocks_db = open_readonly_blocks_db(&config, ctx)?;
                 let tip = find_last_block_inserted(&blocks_db);
@@ -395,7 +394,7 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
             }
         }
         Command::Index(IndexCommand::Drop(cmd)) => {
-            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            let config = ConfigFile::default(false, false, false, false, false, &cmd.config_path, &None)?;
 
             let service = Service::new(&config, ctx);
             let chain_tip = service.get_index_chain_tip().await?;
@@ -417,11 +416,11 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
             println!("{} blocks dropped", cmd.blocks);
         }
         Command::Database(DatabaseCommand::Migrate(cmd)) => {
-            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            let config = ConfigFile::default(false, false, false, false, false, &cmd.config_path, &None)?;
             migrate_dbs(&config, ctx).await?;
         }
         Command::Database(DatabaseCommand::Reset(cmd)) => {
-            let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
+            let config = ConfigFile::default(false, false, false, false, false, &cmd.config_path, &None)?;
             println!(
                 "WARNING: This operation will delete ALL index data and cannot be undone. Confirm? [Y/n]"
             );

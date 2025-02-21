@@ -12,8 +12,9 @@ use std::io::{BufReader, Read};
 #[derive(Deserialize, Debug, Clone)]
 pub struct ConfigFile {
     pub storage: StorageConfigFile,
-    pub ordinals_db: PostgresConfigFile,
+    pub ordinals_db: Option<PostgresConfigFile>,
     pub brc20_db: Option<PostgresConfigFile>,
+    pub runes_db: Option<PostgresConfigFile>,
     pub http_api: Option<PredicatesApiConfigFile>,
     pub resources: ResourcesConfigFile,
     pub network: NetworkConfigFile,
@@ -61,6 +62,7 @@ impl ConfigFile {
             None => SnapshotConfig::Build,
         };
 
+        // TODO: update after integrating runes 
         let config = Config {
             storage: StorageConfig {
                 working_dir: config_file.storage.working_dir.unwrap_or("ordhook".into()),
@@ -69,14 +71,17 @@ impl ConfigFile {
                     .observers_working_dir
                     .unwrap_or("observers".into()),
             },
-            ordinals_db: ordhook::config::PgConnectionConfig {
-                dbname: config_file.ordinals_db.database,
-                host: config_file.ordinals_db.host,
-                port: config_file.ordinals_db.port,
-                user: config_file.ordinals_db.username,
-                password: config_file.ordinals_db.password,
-                search_path: config_file.ordinals_db.search_path,
-                pool_max_size: config_file.ordinals_db.pool_max_size,
+            ordinals_db: match config_file.ordinals_db {
+                Some(ordinals_db) => Some(ordhook::config::PgConnectionConfig {
+                    dbname: ordinals_db.database,
+                    host: ordinals_db.host,
+                    port: ordinals_db.port,
+                    user: ordinals_db.username,
+                    password: ordinals_db.password,
+                    search_path: ordinals_db.search_path,
+                    pool_max_size: ordinals_db.pool_max_size,
+                }),
+                None => None,  
             },
             brc20_db: match config_file.brc20_db {
                 Some(brc20_db) => Some(ordhook::config::PgConnectionConfig {
@@ -90,6 +95,7 @@ impl ConfigFile {
                 }),
                 None => None,
             },
+            runes_db: None,
             snapshot,
             resources: ResourcesConfig {
                 ulimit: config_file.resources.ulimit.unwrap_or(DEFAULT_ULIMIT),
@@ -156,19 +162,32 @@ impl ConfigFile {
         devnet: bool,
         testnet: bool,
         mainnet: bool,
+        ordinals: bool,
+        runes: bool,
         config_path: &Option<String>,
         meta_protocols: &Option<String>,
     ) -> Result<Config, String> {
-        let mut config = match (devnet, testnet, mainnet, config_path) {
-            (true, false, false, _) => Config::devnet_default(),
-            (false, true, false, _) => Config::testnet_default(),
-            (false, false, true, _) => Config::mainnet_default(),
-            (false, false, false, Some(config_path)) => ConfigFile::from_file_path(config_path)?,
+        let mut config = match (devnet, testnet, mainnet, ordinals, runes, config_path) {
+            (true, false, false, true, false, _) => Config::devnet_ordinals_default(),
+            (false, true, false, true, false, _) => Config::testnet_ordinals_default(),
+            (false, false, true, true, false, _) => Config::mainnet_ordinals_default(),
+            (true, false, false, false, true, _) => Config::devnet_runes_default(),
+            (false, true, false, false, true, _) => Config::testnet_runes_default(),
+            (false, false, true, false, true, _) => Config::mainnet_runes_default(),
+            (true, false, false, true, true, _) => Config::devnet_ordinals_and_runes_default(),
+            (false, true, false, true, true, _) => Config::testnet_ordinals_and_runes_default(),
+            (false, false, true, true, true, _) => Config::mainnet_ordinals_and_runes_default(),
+            (false, false, false, false, false, Some(config_path)) => ConfigFile::from_file_path(config_path)?,
             _ => Err("Invalid combination of arguments".to_string())?,
         };
         if let Some(meta_protocols) = meta_protocols {
             match meta_protocols.as_str() {
-                "brc20" => config.meta_protocols.brc20 = true,
+                "brc20" => {
+                    if !ordinals {
+                        return Err("BRC-20 requires ordinals indexer to be enabled".to_string());
+                    }
+                    config.meta_protocols.brc20 = true;
+                }
                 _ => Err("Invalid meta protocol".to_string())?,
             }
         }
