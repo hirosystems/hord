@@ -1,3 +1,11 @@
+## [3.0.0-beta.11](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.10...v3.0.0-beta.11) (2025-02-25)
+
+
+### Bug Fixes
+
+* **brc20:** historical token balance ([#444](https://github.com/hirosystems/ordhook/issues/444)) ([41438ac](https://github.com/hirosystems/ordhook/commit/41438aca962ba7f2c4add4df87740fdb6df6de00))
+* display unbound inscription satpoints as all zeros with unbound sequence as offset ([#445](https://github.com/hirosystems/ordhook/issues/445)) ([6815878](https://github.com/hirosystems/ordhook/commit/68158786f06c0a4ad6f56509eaa96012986f7790))
+
 ## [3.0.0-beta.10](https://github.com/hirosystems/ordhook/compare/v3.0.0-beta.9...v3.0.0-beta.10) (2025-02-18)
 
 
