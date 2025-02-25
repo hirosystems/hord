@@ -490,6 +490,20 @@ export async function brc20Operation(sql: PgSqlClient, operation: TestBrc20Opera
       trans_balance = balances.trans_balance + EXCLUDED.trans_balance,
       total_balance = balances.avail_balance + EXCLUDED.total_balance
   `;
+  await sql`
+    INSERT INTO balances_history
+    (ticker, address, block_height, avail_balance, trans_balance, total_balance)
+    (
+      SELECT ticker, address, ${operation.block_height} AS block_height, avail_balance,
+        trans_balance, total_balance
+      FROM balances
+      WHERE address = ${operation.address} AND ticker = ${operation.ticker}
+    )
+    ON CONFLICT (address, block_height, ticker) DO UPDATE SET
+      avail_balance = EXCLUDED.avail_balance,
+      trans_balance = EXCLUDED.trans_balance,
+      total_balance = EXCLUDED.total_balance
+  `;
 }
 
 /** Generate a random hash like string for testing */

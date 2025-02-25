@@ -1,6 +1,7 @@
 use chainhook_types::{BitcoinBlockSignaling, BitcoinNetwork};
+use chainhook_sdk::indexer::IndexerConfig;
 use ordhook::config::{
-    Config, IndexerConfig, LogConfig, MetaProtocolsConfig, ResourcesConfig, SnapshotConfig,
+    Config, LogConfig, MetaProtocolsConfig, ResourcesConfig, SnapshotConfig,
     SnapshotConfigDownloadUrls, StorageConfig, DEFAULT_BITCOIND_RPC_THREADS,
     DEFAULT_BITCOIND_RPC_TIMEOUT, DEFAULT_BRC20_LRU_CACHE_SIZE, DEFAULT_MEMORY_AVAILABLE,
     DEFAULT_ULIMIT,

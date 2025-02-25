@@ -15,13 +15,13 @@ use crate::db::blocks::{
 };
 use crate::db::cursor::{BlockBytesCursor, TransactionBytesCursor};
 use crate::db::ordinals_pg;
-use crate::utils::bitcoind::bitcoind_wait_for_chain_tip;
 use crate::utils::monitoring::{start_serving_prometheus_metrics, PrometheusMonitoring};
 use crate::{try_crit, try_error, try_info};
 use chainhook_postgres::{pg_begin, pg_pool, pg_pool_client};
 use chainhook_sdk::observer::{
     start_event_observer, BitcoinBlockDataCached, ObserverEvent, ObserverSidecar,
 };
+use chainhook_sdk::utils::bitcoind::bitcoind_wait_for_chain_tip;
 use chainhook_sdk::utils::{BlockHeights, Context};
 use chainhook_types::BlockIdentifier;
 use crossbeam_channel::select;
@@ -224,7 +224,7 @@ impl Service {
     }
 
     pub async fn check_blocks_db_integrity(&mut self) -> Result<(), String> {
-        bitcoind_wait_for_chain_tip(&self.config, &self.ctx);
+        bitcoind_wait_for_chain_tip(&self.config.network, &self.ctx);
         let (tip, missing_blocks) = {
             let blocks_db = open_blocks_db_with_retry(false, &self.config, &self.ctx);
             let ord_client = pg_pool_client(&self.pg_pools.ordinals).await?;
@@ -263,7 +263,7 @@ impl Service {
     /// Synchronizes and indexes all databases until their block height matches bitcoind's block height.
     pub async fn catch_up_to_bitcoin_chain_tip(&self) -> Result<(), String> {
         // 0: Make sure bitcoind is synchronized.
-        bitcoind_wait_for_chain_tip(&self.config, &self.ctx);
+        bitcoind_wait_for_chain_tip(&self.config.network, &self.ctx);
 
         // 1: Catch up blocks DB so it is at least at the same height as the ordinals DB.
         if let Some((start_block, end_block)) =

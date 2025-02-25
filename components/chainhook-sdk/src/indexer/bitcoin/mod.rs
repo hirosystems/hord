@@ -9,8 +9,9 @@ use bitcoincore_rpc::jsonrpc::error::RpcError;
 use bitcoincore_rpc_json::GetRawTransactionResultVoutScriptPubKey;
 use chainhook_types::bitcoin::{OutPoint, TxIn, TxOut};
 use chainhook_types::{
-    BitcoinBlockData, BitcoinBlockMetadata, BitcoinNetwork, BitcoinTransactionData,
-    BitcoinTransactionMetadata, BlockHeader, BlockIdentifier, TransactionIdentifier,
+    BitcoinBlockData, BitcoinBlockMetadata, BitcoinNetwork, 
+    BitcoinTransactionData,BitcoinTransactionMetadata, BlockHeader, BlockIdentifier, 
+    TransactionIdentifier,
 };
 use hiro_system_kit::slog;
 use reqwest::Client as HttpClient;

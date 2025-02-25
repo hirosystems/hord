@@ -23,9 +23,9 @@ use crate::{
         cursor::TransactionBytesCursor,
         ordinals_pg,
     },
-    service::PgConnectionPools,
-    utils::bitcoind::bitcoind_get_block_height,
+    service::PgConnectionPools
 };
+use chainhook_sdk::utils::bitcoind::bitcoind_get_block_height;
 
 pub fn first_inscription_height(config: &Config) -> u64 {
     match config.network.bitcoin_network {
@@ -164,7 +164,7 @@ pub async fn should_sync_ordinals_db(
     };
 
     // TODO: Gracefully handle Regtest, Testnet and Signet
-    let end_block = bitcoind_get_block_height(config, ctx);
+    let end_block = bitcoind_get_block_height(&config.network, ctx);
     let (mut end_block, speed) = if start_block < 200_000 {
         (end_block.min(200_000), 10_000)
     } else if start_block < 550_000 {

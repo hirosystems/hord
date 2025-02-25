@@ -1,5 +1,5 @@
 pub use chainhook_postgres::PgConnectionConfig;
-use chainhook_sdk::observer::EventObserverConfig;
+use chainhook_sdk::{indexer::IndexerConfig, observer::EventObserverConfig};
 use chainhook_types::{BitcoinBlockSignaling, BitcoinNetwork};
 use std::path::PathBuf;
 
@@ -64,16 +64,6 @@ pub struct PathConfig {
 #[derive(Clone, Debug)]
 pub struct UrlConfig {
     pub file_url: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct IndexerConfig {
-    pub bitcoin_network: BitcoinNetwork,
-    pub bitcoind_rpc_url: String,
-    pub bitcoind_rpc_username: String,
-    pub bitcoind_rpc_password: String,
-    pub bitcoin_block_signaling: BitcoinBlockSignaling,
-    pub prometheus_monitoring_port: Option<u16>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
