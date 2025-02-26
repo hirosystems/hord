@@ -15,14 +15,11 @@ pub const DEFAULT_BITCOIND_RPC_THREADS: usize = 4;
 pub const DEFAULT_BITCOIND_RPC_TIMEOUT: u32 = 15;
 pub const DEFAULT_BRC20_LRU_CACHE_SIZE: usize = 50_000;
 
-// TODO: move this one layer above runes and ordinals 
-// as it includes the configs for both 
 #[derive(Clone, Debug)]
 pub struct Config {
     pub storage: StorageConfig,
-    pub ordinals_db: Option<PgConnectionConfig>,
+    pub ordinals_db: PgConnectionConfig,
     pub brc20_db: Option<PgConnectionConfig>,
-    pub runes_db: Option<PgConnectionConfig>,
     pub resources: ResourcesConfig,
     pub network: IndexerConfig,
     pub snapshot: SnapshotConfig,
@@ -119,13 +116,13 @@ impl Config {
         destination_path
     }
 
-    pub fn devnet_ordinals_default() -> Config {
+    pub fn devnet_default() -> Config {
         Config {
             storage: StorageConfig {
                 working_dir: default_cache_path(),
                 observers_working_dir: default_observers_cache_path(),
             },
-            ordinals_db: Some(PgConnectionConfig {
+            ordinals_db: PgConnectionConfig {
                 dbname: "ordinals".to_string(),
                 host: "localhost".to_string(),
                 port: 5432,
@@ -133,9 +130,8 @@ impl Config {
                 password: Some("postgres".to_string()),
                 search_path: None,
                 pool_max_size: None,
-            }),
+            },
             brc20_db: None,
-            runes_db: None,
             snapshot: SnapshotConfig::Build,
             resources: ResourcesConfig {
                 cpu_core_available: num_cpus::get(),
@@ -164,52 +160,13 @@ impl Config {
         }
     }
 
-    // TODO: update after integrating runes 
-    pub fn devnet_runes_default() -> Config {
+    pub fn testnet_default() -> Config {
         Config {
             storage: StorageConfig {
                 working_dir: default_cache_path(),
                 observers_working_dir: default_observers_cache_path(),
             },
-            ordinals_db: None,
-            brc20_db: None,
-            runes_db: None, 
-            snapshot: SnapshotConfig::Build,
-            resources: ResourcesConfig {
-                cpu_core_available: num_cpus::get(),
-                memory_available: DEFAULT_MEMORY_AVAILABLE,
-                ulimit: DEFAULT_ULIMIT,
-                bitcoind_rpc_threads: DEFAULT_BITCOIND_RPC_THREADS,
-                bitcoind_rpc_timeout: DEFAULT_BITCOIND_RPC_TIMEOUT,
-                expected_observers_count: 1,
-                brc20_lru_cache_size: DEFAULT_BRC20_LRU_CACHE_SIZE,
-            },
-            network: IndexerConfig {
-                bitcoind_rpc_url: "http://0.0.0.0:18443".into(),
-                bitcoind_rpc_username: "devnet".into(),
-                bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
-                    "http://0.0.0.0:18543".into(),
-                ),
-                bitcoin_network: BitcoinNetwork::Regtest,
-                prometheus_monitoring_port: None,
-            },
-            logs: LogConfig {
-                ordinals_internals: true,
-                chainhook_internals: false,
-            },
-            meta_protocols: MetaProtocolsConfig { brc20: false },
-        }
-    }
-
-    // TODO: update after integrating runes 
-    pub fn devnet_ordinals_and_runes_default() -> Config {
-        Config {
-            storage: StorageConfig {
-                working_dir: default_cache_path(),
-                observers_working_dir: default_observers_cache_path(),
-            },
-            ordinals_db: Some(PgConnectionConfig {
+            ordinals_db: PgConnectionConfig {
                 dbname: "ordinals".to_string(),
                 host: "localhost".to_string(),
                 port: 5432,
@@ -217,54 +174,8 @@ impl Config {
                 password: Some("postgres".to_string()),
                 search_path: None,
                 pool_max_size: None,
-            }),
+            },
             brc20_db: None,
-            runes_db: None,
-            snapshot: SnapshotConfig::Build,
-            resources: ResourcesConfig {
-                cpu_core_available: num_cpus::get(),
-                memory_available: DEFAULT_MEMORY_AVAILABLE,
-                ulimit: DEFAULT_ULIMIT,
-                bitcoind_rpc_threads: DEFAULT_BITCOIND_RPC_THREADS,
-                bitcoind_rpc_timeout: DEFAULT_BITCOIND_RPC_TIMEOUT,
-                expected_observers_count: 1,
-                brc20_lru_cache_size: DEFAULT_BRC20_LRU_CACHE_SIZE,
-            },
-            network: IndexerConfig {
-                bitcoind_rpc_url: "http://0.0.0.0:18443".into(),
-                bitcoind_rpc_username: "devnet".into(),
-                bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
-                    "http://0.0.0.0:18543".into(),
-                ),
-                bitcoin_network: BitcoinNetwork::Regtest,
-                prometheus_monitoring_port: None,
-            },
-            logs: LogConfig {
-                ordinals_internals: true,
-                chainhook_internals: false,
-            },
-            meta_protocols: MetaProtocolsConfig { brc20: false },
-        }
-    }
-
-    pub fn testnet_ordinals_default() -> Config {
-        Config {
-            storage: StorageConfig {
-                working_dir: default_cache_path(),
-                observers_working_dir: default_observers_cache_path(),
-            },
-            ordinals_db: Some(PgConnectionConfig {
-                dbname: "ordinals".to_string(),
-                host: "localhost".to_string(),
-                port: 5432,
-                user: "postgres".to_string(),
-                password: Some("postgres".to_string()),
-                search_path: None,
-                pool_max_size: None,
-            }),
-            brc20_db: None,
-            runes_db: None,
             snapshot: SnapshotConfig::Build,
             resources: ResourcesConfig {
                 cpu_core_available: num_cpus::get(),
@@ -293,52 +204,13 @@ impl Config {
         }
     }
 
-    // TODO: update after integrating runes 
-    pub fn testnet_runes_default() -> Config {
+    pub fn mainnet_default() -> Config {
         Config {
             storage: StorageConfig {
                 working_dir: default_cache_path(),
                 observers_working_dir: default_observers_cache_path(),
             },
-            ordinals_db: None,
-            brc20_db: None,
-            runes_db: None,
-            snapshot: SnapshotConfig::Build,
-            resources: ResourcesConfig {
-                cpu_core_available: num_cpus::get(),
-                memory_available: DEFAULT_MEMORY_AVAILABLE,
-                ulimit: DEFAULT_ULIMIT,
-                bitcoind_rpc_threads: DEFAULT_BITCOIND_RPC_THREADS,
-                bitcoind_rpc_timeout: DEFAULT_BITCOIND_RPC_TIMEOUT,
-                expected_observers_count: 1,
-                brc20_lru_cache_size: DEFAULT_BRC20_LRU_CACHE_SIZE,
-            },
-            network: IndexerConfig {
-                bitcoind_rpc_url: "http://0.0.0.0:18332".into(),
-                bitcoind_rpc_username: "devnet".into(),
-                bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
-                    "http://0.0.0.0:18543".into(),
-                ),
-                bitcoin_network: BitcoinNetwork::Testnet,
-                prometheus_monitoring_port: Some(9153),
-            },
-            logs: LogConfig {
-                ordinals_internals: true,
-                chainhook_internals: false,
-            },
-            meta_protocols: MetaProtocolsConfig { brc20: false },
-        }
-    }
-
-    // TODO: update after integrating runes 
-    pub fn testnet_ordinals_and_runes_default() -> Config {
-        Config {
-            storage: StorageConfig {
-                working_dir: default_cache_path(),
-                observers_working_dir: default_observers_cache_path(),
-            },
-            ordinals_db: Some(PgConnectionConfig {
+            ordinals_db: PgConnectionConfig {
                 dbname: "ordinals".to_string(),
                 host: "localhost".to_string(),
                 port: 5432,
@@ -346,145 +218,8 @@ impl Config {
                 password: Some("postgres".to_string()),
                 search_path: None,
                 pool_max_size: None,
-            }),
+            },
             brc20_db: None,
-            runes_db: None,
-            snapshot: SnapshotConfig::Build,
-            resources: ResourcesConfig {
-                cpu_core_available: num_cpus::get(),
-                memory_available: DEFAULT_MEMORY_AVAILABLE,
-                ulimit: DEFAULT_ULIMIT,
-                bitcoind_rpc_threads: DEFAULT_BITCOIND_RPC_THREADS,
-                bitcoind_rpc_timeout: DEFAULT_BITCOIND_RPC_TIMEOUT,
-                expected_observers_count: 1,
-                brc20_lru_cache_size: DEFAULT_BRC20_LRU_CACHE_SIZE,
-            },
-            network: IndexerConfig {
-                bitcoind_rpc_url: "http://0.0.0.0:18332".into(),
-                bitcoind_rpc_username: "devnet".into(),
-                bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
-                    "http://0.0.0.0:18543".into(),
-                ),
-                bitcoin_network: BitcoinNetwork::Testnet,
-                prometheus_monitoring_port: Some(9153),
-            },
-            logs: LogConfig {
-                ordinals_internals: true,
-                chainhook_internals: false,
-            },
-            meta_protocols: MetaProtocolsConfig { brc20: false },
-        }
-    }
-
-    pub fn mainnet_ordinals_default() -> Config {
-        Config {
-            storage: StorageConfig {
-                working_dir: default_cache_path(),
-                observers_working_dir: default_observers_cache_path(),
-            },
-            ordinals_db: Some(PgConnectionConfig {
-                dbname: "ordinals".to_string(),
-                host: "localhost".to_string(),
-                port: 5432,
-                user: "postgres".to_string(),
-                password: Some("postgres".to_string()),
-                search_path: None,
-                pool_max_size: None,
-            }),
-            brc20_db: None,
-            runes_db: None,
-            snapshot: SnapshotConfig::Download(SnapshotConfigDownloadUrls {
-                ordinals: DEFAULT_MAINNET_ORDINALS_SQLITE_ARCHIVE.to_string(),
-                brc20: Some(DEFAULT_MAINNET_BRC20_SQLITE_ARCHIVE.to_string()),
-            }),
-            resources: ResourcesConfig {
-                cpu_core_available: num_cpus::get(),
-                memory_available: DEFAULT_MEMORY_AVAILABLE,
-                ulimit: DEFAULT_ULIMIT,
-                bitcoind_rpc_threads: DEFAULT_BITCOIND_RPC_THREADS,
-                bitcoind_rpc_timeout: DEFAULT_BITCOIND_RPC_TIMEOUT,
-                expected_observers_count: 1,
-                brc20_lru_cache_size: DEFAULT_BRC20_LRU_CACHE_SIZE,
-            },
-            network: IndexerConfig {
-                bitcoind_rpc_url: "http://0.0.0.0:8332".into(),
-                bitcoind_rpc_username: "devnet".into(),
-                bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
-                    "http://0.0.0.0:18543".into(),
-                ),
-                bitcoin_network: BitcoinNetwork::Mainnet,
-                prometheus_monitoring_port: Some(9153),
-            },
-            logs: LogConfig {
-                ordinals_internals: true,
-                chainhook_internals: false,
-            },
-            meta_protocols: MetaProtocolsConfig { brc20: false },
-        }
-    }
-
-
-    // TODO: update after integrating runes 
-    pub fn mainnet_runes_default() -> Config {
-        Config {
-            storage: StorageConfig {
-                working_dir: default_cache_path(),
-                observers_working_dir: default_observers_cache_path(),
-            },
-            ordinals_db: None,
-            brc20_db: None,
-            runes_db: None,
-            snapshot: SnapshotConfig::Download(SnapshotConfigDownloadUrls {
-                ordinals: DEFAULT_MAINNET_ORDINALS_SQLITE_ARCHIVE.to_string(),
-                brc20: Some(DEFAULT_MAINNET_BRC20_SQLITE_ARCHIVE.to_string()),
-            }),
-            resources: ResourcesConfig {
-                cpu_core_available: num_cpus::get(),
-                memory_available: DEFAULT_MEMORY_AVAILABLE,
-                ulimit: DEFAULT_ULIMIT,
-                bitcoind_rpc_threads: DEFAULT_BITCOIND_RPC_THREADS,
-                bitcoind_rpc_timeout: DEFAULT_BITCOIND_RPC_TIMEOUT,
-                expected_observers_count: 1,
-                brc20_lru_cache_size: DEFAULT_BRC20_LRU_CACHE_SIZE,
-            },
-            network: IndexerConfig {
-                bitcoind_rpc_url: "http://0.0.0.0:8332".into(),
-                bitcoind_rpc_username: "devnet".into(),
-                bitcoind_rpc_password: "devnet".into(),
-                bitcoin_block_signaling: BitcoinBlockSignaling::ZeroMQ(
-                    "http://0.0.0.0:18543".into(),
-                ),
-                bitcoin_network: BitcoinNetwork::Mainnet,
-                prometheus_monitoring_port: Some(9153),
-            },
-            logs: LogConfig {
-                ordinals_internals: true,
-                chainhook_internals: false,
-            },
-            meta_protocols: MetaProtocolsConfig { brc20: false },
-        }
-    }
-
-    // TODO: update after integrating runes 
-    pub fn mainnet_ordinals_and_runes_default() -> Config {
-        Config {
-            storage: StorageConfig {
-                working_dir: default_cache_path(),
-                observers_working_dir: default_observers_cache_path(),
-            },
-            ordinals_db: Some(PgConnectionConfig {
-                dbname: "ordinals".to_string(),
-                host: "localhost".to_string(),
-                port: 5432,
-                user: "postgres".to_string(),
-                password: Some("postgres".to_string()),
-                search_path: None,
-                pool_max_size: None,
-            }),
-            brc20_db: None,
-            runes_db: None,
             snapshot: SnapshotConfig::Download(SnapshotConfigDownloadUrls {
                 ordinals: DEFAULT_MAINNET_ORDINALS_SQLITE_ARCHIVE.to_string(),
                 brc20: Some(DEFAULT_MAINNET_BRC20_SQLITE_ARCHIVE.to_string()),
@@ -518,7 +253,7 @@ impl Config {
 
     #[cfg(test)]
     pub fn test_default() -> Config {
-        let mut config = Self::mainnet_ordinals_default();
+        let mut config = Self::mainnet_default();
         config.storage.working_dir = "tmp".to_string();
         config.resources.bitcoind_rpc_threads = 1;
         config.resources.cpu_core_available = 1;

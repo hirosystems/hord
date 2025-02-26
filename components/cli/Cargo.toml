@@ -5,6 +5,7 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[bin]]
+# TODO: rename to hirohook after integrating runehook in this repo
 name = "ordhook"
 path = "src/main.rs"
 
