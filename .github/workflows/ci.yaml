@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [ordinals]
+        suite: [ordinals, runes]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [ordinals]
+        suite: [ordinals, runes]
     defaults:
       run:
         working-directory: ./api/${{ matrix.suite }}
