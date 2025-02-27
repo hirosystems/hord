@@ -126,5 +126,26 @@
         "PGPASSWORD": "postgres",
       },
     },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "test: runes-api",
+      "program": "${workspaceFolder}/api/runes/node_modules/jest/bin/jest",
+      "cwd": "${workspaceFolder}/api/runes/",
+      "args": [
+        "--testTimeout=3600000",
+        "--runInBand",
+        "--no-cache",
+      ],
+      "outputCapture": "std",
+      "console": "integratedTerminal",
+      "preLaunchTask": "npm: testenv:run",
+      "postDebugTask": "npm: testenv:stop",
+      "env": {
+        "PGHOST": "localhost",
+        "PGUSER": "postgres",
+        "PGPASSWORD": "postgres",
+      },
+    },
   ]
 }
