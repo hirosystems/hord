@@ -1,6 +1,10 @@
 [storage]
 working_dir = "tmp"
 
+[metrics]
+enabled = true
+prometheus_port = 9153
+
 [ordinals.db]
 database = "ordinals"
 host = "localhost"
@@ -18,6 +22,9 @@ host = "localhost"
 port = 5432
 username = "postgres"
 password = "postgres"
+
+[runes]
+lru_cache_size = 10000
 
 [runes.db]
 database = "runes"

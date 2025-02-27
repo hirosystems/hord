@@ -6,6 +6,7 @@ license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
+config = { path = "../config" }
 serde = { version = "1", features = ["rc"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 serde-hex = "0.1.0"

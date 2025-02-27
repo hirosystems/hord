@@ -9,7 +9,7 @@ pub const DEFAULT_ULIMIT: usize = 2048;
 pub const DEFAULT_MEMORY_AVAILABLE: usize = 8;
 pub const DEFAULT_BITCOIND_RPC_THREADS: usize = 4;
 pub const DEFAULT_BITCOIND_RPC_TIMEOUT: u32 = 15;
-pub const DEFAULT_BRC20_LRU_CACHE_SIZE: usize = 50_000;
+pub const DEFAULT_LRU_CACHE_SIZE: usize = 50_000;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -18,6 +18,7 @@ pub struct Config {
     pub runes: Option<RunesConfig>,
     pub resources: ResourcesConfig,
     pub storage: StorageConfig,
+    pub metrics: Option<MetricsConfig>,
 }
 
 #[derive(Clone, Debug)]
@@ -40,6 +41,7 @@ pub struct OrdinalsBrc20Config {
 
 #[derive(Clone, Debug)]
 pub struct RunesConfig {
+    pub lru_cache_size: usize,
     pub db: PgDatabaseConfig,
 }
 
@@ -69,6 +71,12 @@ pub struct StorageConfig {
     pub working_dir: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct MetricsConfig {
+    pub enabled: bool,
+    pub prometheus_port: u16,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct ResourcesConfig {
     pub ulimit: usize,
@@ -76,8 +84,6 @@ pub struct ResourcesConfig {
     pub memory_available: usize,
     pub bitcoind_rpc_threads: usize,
     pub bitcoind_rpc_timeout: u32,
-    pub expected_observers_count: usize,
-    pub brc20_lru_cache_size: usize,
 }
 
 impl ResourcesConfig {
@@ -111,8 +117,6 @@ impl Config {
                 ulimit: DEFAULT_ULIMIT,
                 bitcoind_rpc_threads: DEFAULT_BITCOIND_RPC_THREADS,
                 bitcoind_rpc_timeout: DEFAULT_BITCOIND_RPC_TIMEOUT,
-                expected_observers_count: 1,
-                brc20_lru_cache_size: DEFAULT_BRC20_LRU_CACHE_SIZE,
             },
             bitcoind: BitcoindConfig {
                 rpc_url: "http://0.0.0.0:18443".into(),
@@ -134,6 +138,7 @@ impl Config {
                 meta_protocols: None,
             }),
             runes: Some(RunesConfig {
+                lru_cache_size: DEFAULT_LRU_CACHE_SIZE,
                 db: PgDatabaseConfig {
                     dbname: "runes".to_string(),
                     host: "localhost".to_string(),
@@ -143,6 +148,10 @@ impl Config {
                     search_path: None,
                     pool_max_size: None,
                 },
+            }),
+            metrics: Some(MetricsConfig {
+                enabled: true,
+                prometheus_port: 9153,
             }),
         }
     }
@@ -160,13 +169,29 @@ impl Config {
         default
     }
 
-    #[cfg(test)]
+    // TODO: Move this to a shared test utils component
     pub fn test_default() -> Config {
         let mut config = Self::mainnet_default();
         config.storage.working_dir = "tmp".to_string();
         config.resources.bitcoind_rpc_threads = 1;
         config.resources.cpu_core_available = 1;
         config
+    }
+
+    pub fn ordinals_brc20_config(&self) -> Option<&OrdinalsBrc20Config> {
+        if let Some(OrdinalsConfig {
+            meta_protocols:
+                Some(OrdinalsMetaProtocolsConfig {
+                    brc20: Some(brc20), ..
+                }),
+            ..
+        }) = &self.ordinals
+        {
+            if brc20.enabled {
+                return Some(brc20);
+            }
+        }
+        None
     }
 }
 

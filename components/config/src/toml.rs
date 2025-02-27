@@ -4,20 +4,11 @@ use std::io::{BufReader, Read};
 use bitcoin::Network;
 
 use crate::{
-    BitcoindConfig, Config, OrdinalsBrc20Config, OrdinalsConfig, OrdinalsMetaProtocolsConfig, PgDatabaseConfig, ResourcesConfig, RunesConfig, StorageConfig, DEFAULT_BITCOIND_RPC_THREADS, DEFAULT_BITCOIND_RPC_TIMEOUT, DEFAULT_BRC20_LRU_CACHE_SIZE, DEFAULT_MEMORY_AVAILABLE, DEFAULT_ULIMIT, DEFAULT_WORKING_DIR
+    BitcoindConfig, Config, MetricsConfig, OrdinalsBrc20Config, OrdinalsConfig,
+    OrdinalsMetaProtocolsConfig, PgDatabaseConfig, ResourcesConfig, RunesConfig, StorageConfig,
+    DEFAULT_BITCOIND_RPC_THREADS, DEFAULT_BITCOIND_RPC_TIMEOUT, DEFAULT_LRU_CACHE_SIZE,
+    DEFAULT_MEMORY_AVAILABLE, DEFAULT_ULIMIT, DEFAULT_WORKING_DIR,
 };
-
-fn pg_database_config_from_toml(toml: PgDatabaseConfigToml) -> PgDatabaseConfig {
-    PgDatabaseConfig {
-        dbname: toml.database,
-        host: toml.host,
-        port: toml.port,
-        user: toml.username,
-        password: toml.password,
-        search_path: toml.search_path,
-        pool_max_size: toml.pool_max_size,
-    }
-}
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct PgDatabaseConfigToml {
@@ -28,6 +19,20 @@ pub struct PgDatabaseConfigToml {
     pub password: Option<String>,
     pub search_path: Option<String>,
     pub pool_max_size: Option<usize>,
+}
+
+impl PgDatabaseConfigToml {
+    fn to_config(self) -> PgDatabaseConfig {
+        PgDatabaseConfig {
+            dbname: self.database,
+            host: self.host,
+            port: self.port,
+            user: self.username,
+            password: self.password,
+            search_path: self.search_path,
+            pool_max_size: self.pool_max_size,
+        }
+    }
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -50,6 +55,7 @@ pub struct OrdinalsBrc20ConfigToml {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct RunesConfigToml {
+    pub lru_cache_size: Option<usize>,
     pub db: PgDatabaseConfigToml,
 }
 
@@ -65,8 +71,6 @@ pub struct ResourcesConfigToml {
     pub memory_available: Option<usize>,
     pub bitcoind_rpc_threads: Option<usize>,
     pub bitcoind_rpc_timeout: Option<u32>,
-    pub expected_observers_count: Option<usize>,
-    pub brc20_lru_cache_size: Option<usize>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -79,12 +83,19 @@ pub struct BitcoindConfigToml {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+pub struct MetricsConfigToml {
+    pub enabled: bool,
+    pub prometheus_port: u16,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct ConfigToml {
     pub storage: StorageConfigToml,
     pub ordinals: Option<OrdinalsConfigToml>,
     pub runes: Option<RunesConfigToml>,
     pub bitcoind: BitcoindConfigToml,
     pub resources: ResourcesConfigToml,
+    pub metrics: Option<MetricsConfigToml>,
 }
 
 impl ConfigToml {
@@ -116,7 +127,7 @@ impl ConfigToml {
         };
         let ordinals = match toml.ordinals {
             Some(ordinals) => Some(OrdinalsConfig {
-                db: pg_database_config_from_toml(ordinals.db),
+                db: ordinals.db.to_config(),
                 meta_protocols: match ordinals.meta_protocols {
                     Some(meta_protocols) => Some(OrdinalsMetaProtocolsConfig {
                         brc20: match meta_protocols.brc20 {
@@ -124,8 +135,8 @@ impl ConfigToml {
                                 enabled: brc20.enabled,
                                 lru_cache_size: brc20
                                     .lru_cache_size
-                                    .unwrap_or(DEFAULT_BRC20_LRU_CACHE_SIZE),
-                                db: pg_database_config_from_toml(brc20.db),
+                                    .unwrap_or(DEFAULT_LRU_CACHE_SIZE),
+                                db: brc20.db.to_config(),
                             }),
                             None => None,
                         },
@@ -137,7 +148,15 @@ impl ConfigToml {
         };
         let runes = match toml.runes {
             Some(runes) => Some(RunesConfig {
-                db: pg_database_config_from_toml(runes.db),
+                lru_cache_size: runes.lru_cache_size.unwrap_or(DEFAULT_LRU_CACHE_SIZE),
+                db: runes.db.to_config(),
+            }),
+            None => None,
+        };
+        let metrics = match toml.metrics {
+            Some(metrics) => Some(MetricsConfig {
+                enabled: metrics.enabled,
+                prometheus_port: metrics.prometheus_port,
             }),
             None => None,
         };
@@ -165,11 +184,6 @@ impl ConfigToml {
                     .resources
                     .bitcoind_rpc_timeout
                     .unwrap_or(DEFAULT_BITCOIND_RPC_TIMEOUT),
-                expected_observers_count: toml.resources.expected_observers_count.unwrap_or(1),
-                brc20_lru_cache_size: toml
-                    .resources
-                    .brc20_lru_cache_size
-                    .unwrap_or(DEFAULT_BRC20_LRU_CACHE_SIZE),
             },
             bitcoind: BitcoindConfig {
                 rpc_url: toml.bitcoind.rpc_url.to_string(),
@@ -178,6 +192,7 @@ impl ConfigToml {
                 network: bitcoin_network,
                 zmq_url: toml.bitcoind.zmq_url,
             },
+            metrics,
         };
         Ok(config)
     }

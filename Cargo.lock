@@ -554,6 +554,7 @@ name = "chainhook-postgres"
 version = "2.2.5"
 dependencies = [
  "bytes",
+ "config",
  "deadpool-postgres",
  "num-traits",
  "slog",

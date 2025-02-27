@@ -16,7 +16,6 @@ serde_derive = "1"
 hex = "0.4.3"
 rand = "0.8.5"
 hiro-system-kit = { workspace = true }
-# toml = { version = "0.5.11", features = ["preserve_order"] }
 ctrlc = { version = "3.2.2", optional = true }
 # reqwest = { version = "0.11", features = ["stream", "json"] }
 crossbeam-channel = "0.5.8"
