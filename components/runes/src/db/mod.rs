@@ -3,6 +3,7 @@ use std::{collections::HashMap, process, str::FromStr};
 use cache::input_rune_balance::InputRuneBalance;
 use chainhook_postgres::types::{PgBigIntU32, PgNumericU128, PgNumericU64};
 use chainhook_sdk::utils::Context;
+use config::Config;
 use models::{
     db_balance_change::DbBalanceChange, db_ledger_entry::DbLedgerEntry, db_rune::DbRune,
     db_supply_change::DbSupplyChange,
@@ -11,7 +12,7 @@ use ordinals::RuneId;
 use refinery::embed_migrations;
 use tokio_postgres::{types::ToSql, Client, Error, GenericClient, NoTls, Transaction};
 
-use crate::{config::Config, try_error, try_info};
+use crate::{try_error, try_info};
 
 pub mod cache;
 pub mod index;
@@ -36,21 +37,22 @@ async fn pg_run_migrations(pg_client: &mut Client, ctx: &Context) {
 }
 
 pub async fn pg_connect(config: &Config, run_migrations: bool, ctx: &Context) -> Client {
+    let db_config = &config.runes.as_ref().unwrap().db;
     let mut pg_config = tokio_postgres::Config::new();
     pg_config
-        .dbname(&config.postgres.database)
-        .host(&config.postgres.host)
-        .port(config.postgres.port)
-        .user(&config.postgres.username);
-    if let Some(password) = config.postgres.password.as_ref() {
+        .dbname(&db_config.dbname)
+        .host(&db_config.host)
+        .port(db_config.port)
+        .user(&db_config.user);
+    if let Some(password) = db_config.password.as_ref() {
         pg_config.password(password);
     }
 
     try_info!(
         ctx,
         "Connecting to postgres at {}:{}",
-        config.postgres.host,
-        config.postgres.port
+        db_config.host,
+        db_config.port
     );
     let mut pg_client: Client;
     loop {

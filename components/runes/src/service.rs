@@ -1,18 +1,18 @@
 use std::sync::mpsc::channel;
 
-use crate::bitcoind::bitcoind_get_block_height;
-use crate::config::Config;
 use crate::db::cache::index_cache::IndexCache;
 use crate::db::index::{get_rune_genesis_block_height, index_block, roll_back_block};
 use crate::db::{pg_connect, pg_get_block_height};
 use crate::scan::bitcoin::scan_blocks;
 use crate::{try_error, try_info};
 use chainhook_sdk::observer::BitcoinBlockDataCached;
+use chainhook_sdk::utils::bitcoind::bitcoind_get_block_height;
 use chainhook_sdk::{
     observer::{start_event_observer, ObserverEvent, ObserverSidecar},
     utils::Context,
 };
 use chainhook_types::BlockIdentifier;
+use config::Config;
 use crossbeam_channel::select;
 
 pub async fn start_service(config: &Config, ctx: &Context) -> Result<(), String> {
@@ -22,8 +22,8 @@ pub async fn start_service(config: &Config, ctx: &Context) -> Result<(), String>
         loop {
             let chain_tip = pg_get_block_height(&mut pg_client, ctx)
                 .await
-                .unwrap_or(get_rune_genesis_block_height(config.get_bitcoin_network()) - 1);
-            let bitcoind_chain_tip = bitcoind_get_block_height(config, ctx);
+                .unwrap_or(get_rune_genesis_block_height(config.bitcoind.network) - 1);
+            let bitcoind_chain_tip = bitcoind_get_block_height(&config.bitcoind, ctx);
             if bitcoind_chain_tip < chain_tip {
                 try_info!(
                     ctx,
@@ -60,7 +60,7 @@ pub async fn start_service(config: &Config, ctx: &Context) -> Result<(), String>
     let observer_sidecar = set_up_observer_sidecar_runloop(config, ctx)
         .await
         .expect("unable to set up observer sidecar");
-    let event_observer_config = config.event_observer.clone();
+    let event_observer_config = config.bitcoind.clone();
     let context = ctx.clone();
     let observer_cmd_tx_moved = observer_cmd_tx.clone();
 

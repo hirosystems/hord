@@ -3,12 +3,12 @@ use std::{collections::HashMap, num::NonZeroUsize, str::FromStr};
 use bitcoin::{Network, ScriptBuf};
 use chainhook_sdk::utils::Context;
 use chainhook_types::bitcoin::TxIn;
+use config::Config;
 use lru::LruCache;
 use ordinals::{Cenotaph, Edict, Etching, Rune, RuneId, Runestone};
 use tokio_postgres::{Client, Transaction};
 
 use crate::{
-    config::Config,
     db::{
         cache::utils::input_rune_balances_from_tx_inputs,
         models::{
@@ -49,8 +49,8 @@ pub struct IndexCache {
 
 impl IndexCache {
     pub async fn new(config: &Config, pg_client: &mut Client, ctx: &Context) -> Self {
-        let network = config.get_bitcoin_network();
-        let cap = NonZeroUsize::new(config.resources.lru_cache_size).unwrap();
+        let network = config.bitcoind.network;
+        let cap = NonZeroUsize::new(config.runes.as_ref().unwrap().lru_cache_size).unwrap();
         IndexCache {
             network,
             next_rune_number: pg_get_max_rune_number(pg_client, ctx).await + 1,

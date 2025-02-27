@@ -3202,6 +3202,7 @@ dependencies = [
  "chainhook-types",
  "clap 4.5.31",
  "clap_generate",
+ "config",
  "crossbeam-channel",
  "ctrlc",
  "deadpool-postgres",

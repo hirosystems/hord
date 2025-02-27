@@ -10,7 +10,7 @@ bitcoin = { workspace = true }
 lru = "0.12.3"
 ordinals = "0.0.15"
 bytes = "1.3"
-# rusqlite = { version = "0.28.0", features = ["bundled"] }
+config = { path = "../config" }
 serde = "1"
 serde_derive = "1"
 hex = "0.4.3"
