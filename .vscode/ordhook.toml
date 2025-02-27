@@ -1,34 +1,37 @@
 [storage]
 working_dir = "tmp"
-observers_working_dir = "tmp"
 
-[ordinals_db]
+[ordinals.db]
 database = "ordinals"
 host = "localhost"
 port = 5432
 username = "postgres"
 password = "postgres"
 
-[brc20_db]
+[ordinals.meta_protocols.brc20]
+enabled = true
+lru_cache_size = 10000
+
+[ordinals.meta_protocols.brc20.db]
 database = "brc20"
 host = "localhost"
 port = 5432
 username = "postgres"
 password = "postgres"
 
-# The Http Api allows you to register / deregister
-# dynamically predicates.
-# Disable by default.
-#
-# [http_api]
-# http_port = 20456
+[runes.db]
+database = "runes"
+host = "localhost"
+port = 5432
+username = "postgres"
+password = "postgres"
 
-[network]
-mode = "mainnet"
-bitcoind_rpc_url = "http://localhost:8332"
-bitcoind_rpc_username = "rafaelcr"
-bitcoind_rpc_password = "developer"
-bitcoind_zmq_url = "tcp://0.0.0.0:18543"
+[bitcoind]
+network = "mainnet"
+rpc_url = "http://localhost:8332"
+rpc_username = "rafaelcr"
+rpc_password = "developer"
+zmq_url = "tcp://0.0.0.0:18543"
 
 [resources]
 ulimit = 2048
@@ -37,10 +40,3 @@ memory_available = 16
 bitcoind_rpc_threads = 2
 bitcoind_rpc_timeout = 15
 expected_observers_count = 1
-
-[logs]
-ordinals_internals = true
-chainhook_internals = true
-
-[meta_protocols]
-brc20 = true

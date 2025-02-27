@@ -4,6 +4,7 @@ members = [
     "components/chainhook-postgres",
     "components/chainhook-types-rs",
     "components/cli",
+    "components/config",
     "components/ordhook-core",
     "components/ord",
     "components/runes",
