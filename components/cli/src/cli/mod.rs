@@ -20,15 +20,15 @@ use std::time::Duration;
 use std::{process, u64};
 
 #[derive(Parser, Debug)]
-#[clap(name = "ordhook", author, version, about, long_about = None)]
+#[clap(name = "bitcoin-indexer", author, version, about, long_about = None)]
 enum Opts {
-    /// Ordhook commands
+    /// Ordinals commands
     #[clap(subcommand)]
-    Ordhook(OrdhookCommand),
-    // /// Runehook commands
+    Ordinals(OrdhookCommand),
     // TODO: uncomment after integrating runehook in this repo
+    // /// Runes commands
     // #[clap(subcommand)]
-    // Runehook(RunehookCommand),
+    // Runes(RunehookCommand),
 }
 
 #[derive(Subcommand, PartialEq, Clone, Debug)]
@@ -428,7 +428,7 @@ pub fn main() {
 }
 
 async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
-    if let Opts::Ordhook(subcmd) = opts {
+    if let Opts::Ordinals(subcmd) = opts {
         match subcmd {
             OrdhookCommand::Service(subcmd) => match subcmd {
                 OrdhookServiceCommand::Start(cmd) => {
@@ -569,53 +569,54 @@ async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
             }
         }
         // TODO: uncomment after integrating runehook in this repo
-    } /* else if let Opts::Runehook(subcmd) = opts {
-        match subcmd {
-            RunehookCommand::Config(RunehookConfigCommand::New(_options)) => {
-                use std::fs::File;
-                use std::io::Write;
-                use std::path::PathBuf;
-                let config_content = generate_runehook_config();
-                let mut file_path = PathBuf::new();
-                file_path.push("Runehook.toml");
-                let mut file = File::create(&file_path)
-                    .map_err(|e| format!("unable to open file {}\n{}", file_path.display(), e))?;
-                file.write_all(config_content.as_bytes())
-                    .map_err(|e| format!("unable to write file {}\n{}", file_path.display(), e))?;
-                println!("Created file Runehook.toml");
-            }
-            RunehookCommand::Service(RunehookServiceCommand::Start(cmd)) => {
-                let config = RunehookConfig::from_file_path(&cmd.config_path)?;
-                let maintenance_enabled = std::env::var("MAINTENANCE_MODE").unwrap_or("0".into());
-                if maintenance_enabled.eq("1") {
-                    try_info!(ctx, "Entering maintenance mode. Unset MAINTENANCE_MODE and reboot to resume operations.");
-                    sleep(Duration::from_secs(u64::MAX))
-                }
-                // start_service(&config, &ctx).await?;
-            }
-            RunehookCommand::Scan(RunehookScanCommand::Start(cmd)) => {
-                let config = RunehookConfig::from_file_path(&cmd.config_path)?;
-                let blocks = cmd.get_blocks();
-                // let mut pg_client = pg_connect(&config, true, &ctx).await;
-                // let mut index_cache = IndexCache::new(&config, &mut pg_client, &ctx).await;
-                // scan_blocks(blocks, &config, &mut pg_client, &mut index_cache, &ctx).await?;
-            }
-            RunehookCommand::Db(RunehookDbCommand::Drop(cmd)) => {
-                let config = RunehookConfig::from_file_path(&cmd.config_path)?;
-                println!(
-                    "{} blocks will be deleted. Confirm? [Y/n]",
-                    cmd.end_block - cmd.start_block + 1
-                );
-                let mut buffer = String::new();
-                std::io::stdin().read_line(&mut buffer).unwrap();
-                if buffer.starts_with('n') {
-                    return Err("Deletion aborted".to_string());
-                }
+    }  
+    // else if let Opts::Runes(subcmd) = opts {
+    //     match subcmd {
+    //         RunehookCommand::Config(RunehookConfigCommand::New(_options)) => {
+    //             use std::fs::File;
+    //             use std::io::Write;
+    //             use std::path::PathBuf;
+    //             let config_content = generate_runehook_config();
+    //             let mut file_path = PathBuf::new();
+    //             file_path.push("Runehook.toml");
+    //             let mut file = File::create(&file_path)
+    //                 .map_err(|e| format!("unable to open file {}\n{}", file_path.display(), e))?;
+    //             file.write_all(config_content.as_bytes())
+    //                 .map_err(|e| format!("unable to write file {}\n{}", file_path.display(), e))?;
+    //             println!("Created file Runehook.toml");
+    //         }
+    //         RunehookCommand::Service(RunehookServiceCommand::Start(cmd)) => {
+    //             let config = RunehookConfig::from_file_path(&cmd.config_path)?;
+    //             let maintenance_enabled = std::env::var("MAINTENANCE_MODE").unwrap_or("0".into());
+    //             if maintenance_enabled.eq("1") {
+    //                 try_info!(ctx, "Entering maintenance mode. Unset MAINTENANCE_MODE and reboot to resume operations.");
+    //                 sleep(Duration::from_secs(u64::MAX))
+    //             }
+    //             // start_service(&config, &ctx).await?;
+    //         }
+    //         RunehookCommand::Scan(RunehookScanCommand::Start(cmd)) => {
+    //             let config = RunehookConfig::from_file_path(&cmd.config_path)?;
+    //             let blocks = cmd.get_blocks();
+    //             // let mut pg_client = pg_connect(&config, true, &ctx).await;
+    //             // let mut index_cache = IndexCache::new(&config, &mut pg_client, &ctx).await;
+    //             // scan_blocks(blocks, &config, &mut pg_client, &mut index_cache, &ctx).await?;
+    //         }
+    //         RunehookCommand::Db(RunehookDbCommand::Drop(cmd)) => {
+    //             let config = RunehookConfig::from_file_path(&cmd.config_path)?;
+    //             println!(
+    //                 "{} blocks will be deleted. Confirm? [Y/n]",
+    //                 cmd.end_block - cmd.start_block + 1
+    //             );
+    //             let mut buffer = String::new();
+    //             std::io::stdin().read_line(&mut buffer).unwrap();
+    //             if buffer.starts_with('n') {
+    //                 return Err("Deletion aborted".to_string());
+    //             }
     
-                // let mut pg_client = pg_connect(&config, false, &ctx).await;
-                // drop_blocks(cmd.start_block, cmd.end_block, &mut pg_client, &ctx).await;
-            }
-        }
-    } */
+    //             // let mut pg_client = pg_connect(&config, false, &ctx).await;
+    //             // drop_blocks(cmd.start_block, cmd.end_block, &mut pg_client, &ctx).await;
+    //         }
+    //     }
+    // } 
     Ok(())
 }
