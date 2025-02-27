@@ -1,5 +1,5 @@
 {
-  "name": "@hirosystems/runes-api",
+  "name": "runes-api",
   "version": "0.3.0",
   "description": "",
   "main": "index.js",
