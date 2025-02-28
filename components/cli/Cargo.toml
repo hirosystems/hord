@@ -9,7 +9,9 @@ name = "bitcoin-indexer"
 path = "src/main.rs"
 
 [dependencies]
+config = { path = "../config" }
 ordhook = { path = "../ordhook-core" }
+runes = { path = "../runes" }
 chainhook-types = { path = "../chainhook-types-rs" }
 chainhook-sdk = { path = "../chainhook-sdk" }
 hex = "0.4.3"

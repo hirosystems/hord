@@ -48,7 +48,7 @@ fn bitcoin_tx_from_chainhook_tx(
             }
         }
         outputs.push(TxOut {
-            value: Amount::from_int_btc(output.value),
+            value: Amount::from_sat(output.value),
             script_pubkey: script,
         });
     }

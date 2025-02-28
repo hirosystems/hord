@@ -1,17 +1,10 @@
-use crate::config::file::{ConfigFile, RunehookConfig};
-use crate::config::generator::{generate_ordhook_config, generate_runehook_config};
-use chainhook_sdk::utils::{BlockHeights, Context};
-use clap::{Parser, Subcommand};
+use chainhook_sdk::utils::Context;
+use clap::Parser;
+use commands::{Command, ConfigCommand, DatabaseCommand, IndexCommand, Protocol, ServiceCommand};
+use config::generator::generate_toml_config;
+use config::Config;
 use hiro_system_kit;
-use ordhook::core::first_inscription_height;
-use ordhook::core::pipeline::bitcoind_download_blocks;
-use ordhook::core::pipeline::processors::block_archiving::start_block_archiving_processor;
-use ordhook::db::blocks::{
-    find_block_bytes_at_block_height, find_last_block_inserted, find_missing_blocks,
-    open_blocks_db_with_retry, open_readonly_blocks_db,
-};
-use ordhook::db::cursor::BlockBytesCursor;
-use ordhook::db::{migrate_dbs, reset_dbs};
+use ordhook::db::migrate_dbs;
 use ordhook::service::Service;
 use ordhook::try_info;
 use std::path::PathBuf;
@@ -19,390 +12,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use std::{process, u64};
 
-#[derive(Parser, Debug)]
-#[clap(name = "bitcoin-indexer", author, version, about, long_about = None)]
-enum Opts {
-    /// Ordinals commands
-    #[clap(subcommand)]
-    Ordinals(OrdhookCommand),
-    // TODO: uncomment after integrating runehook in this repo
-    // /// Runes commands
-    // #[clap(subcommand)]
-    // Runes(RunehookCommand),
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-enum OrdhookCommand {
-    /// Generate a new configuration file
-    #[clap(subcommand)]
-    Config(OrdhookConfigCommand),
-    /// Stream Bitcoin blocks and index ordinals inscriptions and transfers
-    #[clap(subcommand)]
-    Service(OrdhookServiceCommand),
-    /// Perform maintenance operations on local index
-    #[clap(subcommand)]
-    Index(OrdhookIndexCommand),
-    /// Database operations
-    #[clap(subcommand)]
-    Database(OrdhookDatabaseCommand),
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-enum OrdhookDatabaseCommand {
-    /// Migrates database
-    #[clap(name = "migrate", bin_name = "migrate")]
-    Migrate(OrdhookDatabaseMigrateCommand),
-    /// Resets database to an empty state
-    #[clap(name = "reset", bin_name = "reset")]
-    Reset(OrdhookDatabaseMigrateCommand),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct OrdhookDatabaseMigrateCommand {
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-enum OrdhookRepairCommand {
-    /// Rewrite blocks data in hord.rocksdb
-    #[clap(name = "blocks", bin_name = "blocks")]
-    Blocks(OrdhookRepairStorageCommand),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct OrdhookRepairStorageCommand {
-    /// Interval of blocks (--interval 767430:800000)
-    #[clap(long = "interval", conflicts_with = "blocks")]
-    pub blocks_interval: Option<String>,
-    /// List of blocks (--blocks 767430,767431,767433,800000)
-    #[clap(long = "blocks", conflicts_with = "interval")]
-    pub blocks: Option<String>,
-    /// Network threads
-    #[clap(long = "network-threads")]
-    pub network_threads: Option<usize>,
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-    /// Cascade to observers
-    #[clap(short, long, action = clap::ArgAction::SetTrue)]
-    pub repair_observers: Option<bool>,
-    /// Display debug logs
-    #[clap(short, long, action = clap::ArgAction::SetTrue)]
-    pub debug: Option<bool>,
-}
-
-impl OrdhookRepairStorageCommand {
-    pub fn get_blocks(&self) -> Vec<u64> {
-        let blocks = match (&self.blocks_interval, &self.blocks) {
-            (Some(interval), None) => {
-                let blocks = interval.split(':').collect::<Vec<_>>();
-                let start_block: u64 = blocks
-                    .first()
-                    .expect("unable to get start_block")
-                    .parse::<u64>()
-                    .expect("unable to parse start_block");
-                let end_block: u64 = blocks
-                    .get(1)
-                    .expect("unable to get end_block")
-                    .parse::<u64>()
-                    .expect("unable to parse end_block");
-                BlockHeights::BlockRange(start_block, end_block).get_sorted_entries()
-            }
-            (None, Some(blocks)) => {
-                let blocks = blocks
-                    .split(',')
-                    .map(|b| b.parse::<u64>().expect("unable to parse block"))
-                    .collect::<Vec<_>>();
-                BlockHeights::Blocks(blocks).get_sorted_entries()
-            }
-            _ => unreachable!(),
-        };
-        blocks.unwrap().into()
-    }
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-#[clap(bin_name = "config", aliases = &["config"])]
-enum OrdhookConfigCommand {
-    /// Generate new config
-    #[clap(name = "new", bin_name = "new", aliases = &["generate"])]
-    New(OrdhookNewConfig),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct OrdhookNewConfig {
-    /// Target Regtest network
-    #[clap(
-        long = "regtest",
-        conflicts_with = "testnet",
-        conflicts_with = "mainnet"
-    )]
-    pub regtest: bool,
-    /// Target Testnet network
-    #[clap(
-        long = "testnet",
-        conflicts_with = "regtest",
-        conflicts_with = "mainnet"
-    )]
-    pub testnet: bool,
-    /// Target Mainnet network
-    #[clap(
-        long = "mainnet",
-        conflicts_with = "testnet",
-        conflicts_with = "regtest"
-    )]
-    pub mainnet: bool,
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-enum OrdhookServiceCommand {
-    /// Start chainhook-cli
-    #[clap(name = "start", bin_name = "start")]
-    Start(OrdhookStartCommand),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct OrdhookStartCommand {
-    /// Target Regtest network
-    #[clap(
-        long = "regtest",
-        conflicts_with = "testnet",
-        conflicts_with = "mainnet"
-    )]
-    pub regtest: bool,
-    /// Target Testnet network
-    #[clap(
-        long = "testnet",
-        conflicts_with = "regtest",
-        conflicts_with = "mainnet"
-    )]
-    pub testnet: bool,
-    /// Target Mainnet network
-    #[clap(
-        long = "mainnet",
-        conflicts_with = "testnet",
-        conflicts_with = "regtest"
-    )]
-    pub mainnet: bool,
-    /// Load config file path
-    #[clap(
-        long = "config-path",
-        conflicts_with = "mainnet",
-        conflicts_with = "testnet",
-        conflicts_with = "regtest"
-    )]
-    pub config_path: Option<String>,
-    /// Check blocks integrity
-    #[clap(long = "check-blocks-integrity")]
-    pub block_integrity_check: bool,
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-enum OrdhookIndexCommand {
-    /// Initialize a new ordhook db
-    #[clap(name = "new", bin_name = "new")]
-    New(SyncOrdhookDbCommand),
-    /// Catch-up ordhook db
-    #[clap(name = "sync", bin_name = "sync")]
-    Sync(SyncOrdhookDbCommand),
-    /// Rebuild inscriptions entries for a given block
-    #[clap(name = "drop", bin_name = "drop")]
-    Drop(DropOrdhookDbCommand),
-    /// Check integrity
-    #[clap(name = "check", bin_name = "check")]
-    Check(CheckOrdhookDbCommand),
-    /// Db maintenance related commands
-    #[clap(subcommand)]
-    Repair(OrdhookRepairCommand),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct UpdateOrdhookDbCommand {
-    /// Starting block
-    pub start_block: u64,
-    /// Ending block
-    pub end_block: u64,
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-    /// Transfers only
-    pub transfers_only: Option<bool>,
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct SyncOrdhookDbCommand {
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct DropOrdhookDbCommand {
-    pub blocks: u32,
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct PatchOrdhookDbCommand {
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct MigrateOrdhookDbCommand {
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct CheckOrdhookDbCommand {
-    /// Starting block
-    pub start_block: u64,
-    /// Ending block
-    pub end_block: u64,
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: Option<String>,
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-enum RunehookCommand {
-    /// Generate configuration file
-    #[clap(subcommand)]
-    Config(RunehookConfigCommand),
-    /// Streaming blocks and indexing runes
-    #[clap(subcommand)]
-    Service(RunehookServiceCommand),
-    /// Scanning blocks and indexing runes
-    #[clap(subcommand)]
-    Scan(RunehookScanCommand),
-    /// Perform maintenance operations on local databases
-    #[clap(subcommand)]
-    Db(RunehookDbCommand),
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-#[clap(bin_name = "config")]
-enum RunehookConfigCommand {
-    /// Generate new config
-    #[clap(name = "new", bin_name = "new", aliases = &["generate"])]
-    New(RunehookNewConfig),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct RunehookNewConfig {
-    /// Target Devnet network
-    #[clap(
-        long = "simnet",
-        conflicts_with = "testnet",
-        conflicts_with = "mainnet"
-    )]
-    pub devnet: bool,
-    /// Target Testnet network
-    #[clap(
-        long = "testnet",
-        conflicts_with = "simnet",
-        conflicts_with = "mainnet"
-    )]
-    pub testnet: bool,
-    /// Target Mainnet network
-    #[clap(
-        long = "mainnet",
-        conflicts_with = "testnet",
-        conflicts_with = "simnet"
-    )]
-    pub mainnet: bool,
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-#[clap(bin_name = "stream")]
-enum RunehookServiceCommand {
-    /// Run a service
-    #[clap(name = "start", bin_name = "start")]
-    Start(StartRunehookStreamCommand),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct StartRunehookStreamCommand {
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: String,
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-#[clap(bin_name = "scan")]
-enum RunehookScanCommand {
-    /// Run a scan
-    #[clap(name = "start", bin_name = "start")]
-    Start(StartRunehookScanCommand),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct StartRunehookScanCommand {
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: String,
-    /// Interval of blocks (--interval 767430:800000)
-    #[clap(long = "interval", conflicts_with = "blocks")]
-    pub blocks_interval: Option<String>,
-    /// List of blocks (--blocks 767430,767431,767433,800000)
-    #[clap(long = "blocks", conflicts_with = "interval")]
-    pub blocks: Option<String>,
-}
-
-impl StartRunehookScanCommand {
-    pub fn get_blocks(&self) -> Vec<u64> {
-        let blocks = match (&self.blocks_interval, &self.blocks) {
-            (Some(interval), None) => {
-                let blocks = interval.split(':').collect::<Vec<_>>();
-                let start_block: u64 = blocks
-                    .first()
-                    .expect("unable to get start_block")
-                    .parse::<u64>()
-                    .expect("unable to parse start_block");
-                let end_block: u64 = blocks
-                    .get(1)
-                    .expect("unable to get end_block")
-                    .parse::<u64>()
-                    .expect("unable to parse end_block");
-                BlockHeights::BlockRange(start_block, end_block).get_sorted_entries()
-            }
-            (None, Some(blocks)) => {
-                let blocks = blocks
-                    .split(',')
-                    .map(|b| b.parse::<u64>().expect("unable to parse block"))
-                    .collect::<Vec<_>>();
-                BlockHeights::Blocks(blocks).get_sorted_entries()
-            }
-            _ => panic!("'--interval' or '--blocks' argument required. '--help' for more details."),
-        };
-        blocks.unwrap().into()
-    }
-}
-
-#[derive(Subcommand, PartialEq, Clone, Debug)]
-enum RunehookDbCommand {
-    /// Rebuild inscriptions entries for a given block
-    #[clap(name = "drop", bin_name = "drop")]
-    Drop(DropRunehookDbCommand),
-}
-
-#[derive(Parser, PartialEq, Clone, Debug)]
-struct DropRunehookDbCommand {
-    /// Starting block
-    pub start_block: u64,
-    /// Ending block
-    pub end_block: u64,
-    /// Load config file path
-    #[clap(long = "config-path")]
-    pub config_path: String,
-}
+mod commands;
 
 pub fn main() {
     let logger = hiro_system_kit::log::setup_logger();
@@ -412,7 +22,7 @@ pub fn main() {
         tracer: false,
     };
 
-    let opts: Opts = match Opts::try_parse() {
+    let opts: Protocol = match Protocol::try_parse() {
         Ok(opts) => opts,
         Err(e) => {
             println!("{}", e);
@@ -427,196 +37,141 @@ pub fn main() {
     }
 }
 
-async fn handle_command(opts: Opts, ctx: &Context) -> Result<(), String> {
-    if let Opts::Ordinals(subcmd) = opts {
-        match subcmd {
-            OrdhookCommand::Service(subcmd) => match subcmd {
-                OrdhookServiceCommand::Start(cmd) => {
-                    let maintenance_enabled =
-                        std::env::var("ORDHOOK_MAINTENANCE").unwrap_or("0".into());
-                if maintenance_enabled.eq("1") {
-                    try_info!(ctx, "Entering maintenance mode. Unset ORDHOOK_MAINTENANCE and reboot to resume operations");
-                    sleep(Duration::from_secs(u64::MAX))
-                }
+fn check_maintenance_mode(ctx: &Context) {
+    let maintenance_enabled = std::env::var("ORDHOOK_MAINTENANCE").unwrap_or("0".into());
+    if maintenance_enabled.eq("1") {
+        try_info!(
+            ctx,
+            "Entering maintenance mode. Unset ORDHOOK_MAINTENANCE and reboot to resume operations"
+        );
+        sleep(Duration::from_secs(u64::MAX))
+    }
+}
 
-                let config = ConfigFile::default(
-                    cmd.regtest,
-                    cmd.testnet,
-                    cmd.mainnet,
-                    &cmd.config_path,
-                    &None,
-                )?;
+fn confirm_rollback(current_chain_tip: u64, blocks_to_rollback: u32) -> Result<(), String> {
+    println!("Index chain tip is at #{current_chain_tip}");
+    println!(
+        "{} blocks will be dropped. New index chain tip will be at #{}. Confirm? [Y/n]",
+        blocks_to_rollback,
+        current_chain_tip - blocks_to_rollback as u64
+    );
+    let mut buffer = String::new();
+    std::io::stdin().read_line(&mut buffer).unwrap();
+    if buffer.starts_with('n') {
+        return Err("Deletion aborted".to_string());
+    }
+    Ok(())
+}
 
-                migrate_dbs(&config, ctx).await?;
+async fn handle_command(opts: Protocol, ctx: &Context) -> Result<(), String> {
+    match opts {
+        Protocol::Ordinals(subcmd) => match subcmd {
+            Command::Service(subcmd) => match subcmd {
+                ServiceCommand::Start(cmd) => {
+                    check_maintenance_mode(ctx);
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_ordinals_config()?;
+                    migrate_dbs(&config, ctx).await?;
 
-                let mut service = Service::new(&config, ctx);
-                // TODO(rafaelcr): This only works if there's a rocksdb file already containing blocks previous to the first
-                // inscription height.
-                let start_block = service.get_index_chain_tip().await?;
-                try_info!(ctx, "Index chain tip is at #{start_block}");
+                    let mut service = Service::new(&config, ctx);
+                    // TODO(rafaelcr): This only works if there's a rocksdb file already containing blocks previous to the first
+                    // inscription height.
+                    let start_block = service.get_index_chain_tip().await?;
+                    try_info!(ctx, "Index chain tip is at #{start_block}");
 
-                return service.run(cmd.block_integrity_check).await;
-                }
-            },
-            OrdhookCommand::Config(subcmd) => match subcmd {
-                OrdhookConfigCommand::New(cmd) => {
-                    use std::fs::File;
-                    use std::io::Write;
-                    let config =
-                        ConfigFile::default(cmd.regtest, cmd.testnet, cmd.mainnet, &None, &None)?;
-                    let config_content = generate_ordhook_config(&config.network.bitcoin_network);
-                    let mut file_path = PathBuf::new();
-                    file_path.push("Ordhook.toml");
-                    let mut file = File::create(&file_path)
-                        .map_err(|e| format!("unable to open file {}\n{}", file_path.display(), e))?;
-                    file.write_all(config_content.as_bytes())
-                        .map_err(|e| format!("unable to write file {}\n{}", file_path.display(), e))?;
-                    println!("Created file Ordhook.toml");
+                    return service.run(false).await;
                 }
             },
-            OrdhookCommand::Index(OrdhookIndexCommand::New(cmd)) => {
-                let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
-                migrate_dbs(&config, ctx).await?;
-                open_blocks_db_with_retry(true, &config, ctx);
-            }
-            OrdhookCommand::Index(OrdhookIndexCommand::Sync(cmd)) => {
-                let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
-                migrate_dbs(&config, ctx).await?;
-                let service = Service::new(&config, ctx);
-                service.catch_up_to_bitcoin_chain_tip().await?;
-            }
-            OrdhookCommand::Index(OrdhookIndexCommand::Repair(subcmd)) => match subcmd {
-                OrdhookRepairCommand::Blocks(cmd) => {
-                    let mut config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
-                    if let Some(network_threads) = cmd.network_threads {
-                        config.resources.bitcoind_rpc_threads = network_threads;
-                    }
-                    let blocks = cmd.get_blocks();
-                    let block_ingestion_processor =
-                        start_block_archiving_processor(&config, ctx, false, None);
-                    bitcoind_download_blocks(
-                        &config,
-                        blocks,
-                        first_inscription_height(&config),
-                        &block_ingestion_processor,
-                        10_000,
-                        ctx,
+            Command::Index(index_command) => match index_command {
+                IndexCommand::Sync(cmd) => {
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_ordinals_config()?;
+                    migrate_dbs(&config, ctx).await?;
+                    let service = Service::new(&config, ctx);
+                    service.catch_up_to_bitcoin_chain_tip().await?;
+                }
+                IndexCommand::Rollback(cmd) => {
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_ordinals_config()?;
+
+                    let service = Service::new(&config, ctx);
+                    let chain_tip = service.get_index_chain_tip().await?;
+                    confirm_rollback(chain_tip, cmd.blocks)?;
+
+                    let service = Service::new(&config, ctx);
+                    let block_heights: Vec<u64> =
+                        ((chain_tip - cmd.blocks as u64)..=chain_tip).collect();
+                    service.rollback(&block_heights).await?;
+                    println!("{} blocks dropped", cmd.blocks);
+                }
+            },
+            Command::Database(database_command) => match database_command {
+                DatabaseCommand::Migrate(cmd) => {
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_ordinals_config()?;
+                    migrate_dbs(&config, ctx).await?;
+                }
+            },
+        },
+        Protocol::Runes(subcmd) => match subcmd {
+            Command::Service(service_command) => match service_command {
+                ServiceCommand::Start(cmd) => {
+                    check_maintenance_mode(ctx);
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_runes_config()?;
+                    return runes::service::start_service(&config, ctx).await;
+                }
+            },
+            Command::Index(index_command) => match index_command {
+                IndexCommand::Sync(cmd) => {
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_runes_config()?;
+                    runes::service::catch_up_to_bitcoin_chain_tip(&config, ctx).await?;
+                }
+                IndexCommand::Rollback(cmd) => {
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_runes_config()?;
+                    let chain_tip = runes::service::get_index_chain_tip(&config, ctx).await;
+                    confirm_rollback(chain_tip, cmd.blocks)?;
+
+                    let mut pg_client = runes::db::pg_connect(&config, false, &ctx).await;
+                    runes::scan::bitcoin::drop_blocks(
+                        chain_tip - cmd.blocks as u64,
+                        chain_tip,
+                        &mut pg_client,
+                        &ctx,
                     )
-                    .await?;
-                    if let Some(true) = cmd.debug {
-                        let blocks_db = open_blocks_db_with_retry(false, &config, ctx);
-                        for i in cmd.get_blocks().into_iter() {
-                            let block_bytes =
-                                find_block_bytes_at_block_height(i as u32, 10, &blocks_db, ctx)
-                                    .expect("unable to retrieve block {i}");
-                            let block = BlockBytesCursor::new(&block_bytes);
-                            info!(ctx.expect_logger(), "--------------------");
-                            info!(ctx.expect_logger(), "Block: {i}");
-                            for tx in block.iter_tx() {
-                                info!(ctx.expect_logger(), "Tx: {}", hex::encode(tx.txid));
-                            }
-                        }
-                    }
+                    .await;
                 }
             },
-            OrdhookCommand::Index(OrdhookIndexCommand::Check(cmd)) => {
-                let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
-                {
-                    let blocks_db = open_readonly_blocks_db(&config, ctx)?;
-                    let tip = find_last_block_inserted(&blocks_db);
-                    println!("Tip: {}", tip);
-                    let missing_blocks = find_missing_blocks(&blocks_db, 1, tip, ctx);
-                    println!("{:?}", missing_blocks);
+            Command::Database(database_command) => match database_command {
+                DatabaseCommand::Migrate(cmd) => {
+                    let config = Config::from_file_path(&cmd.config_path)?;
+                    config.assert_runes_config()?;
+                    let _ = runes::db::pg_connect(&config, true, ctx).await;
                 }
+            },
+        },
+        Protocol::Config(subcmd) => match subcmd {
+            ConfigCommand::New(cmd) => {
+                use std::fs::File;
+                use std::io::Write;
+                let network = match (cmd.mainnet, cmd.testnet, cmd.regtest) {
+                    (true, false, false) => "mainnet",
+                    (false, true, false) => "testnet",
+                    (false, false, true) => "regtest",
+                    _ => return Err("Invalid network".into()),
+                };
+                let config_content = generate_toml_config(network);
+                let mut file_path = PathBuf::new();
+                file_path.push("Indexer.toml");
+                let mut file = File::create(&file_path)
+                    .map_err(|e| format!("unable to open file {}\n{}", file_path.display(), e))?;
+                file.write_all(config_content.as_bytes())
+                    .map_err(|e| format!("unable to write file {}\n{}", file_path.display(), e))?;
+                println!("Created file Indexer.toml");
             }
-            OrdhookCommand::Index(OrdhookIndexCommand::Drop(cmd)) => {
-                let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
-
-                let service = Service::new(&config, ctx);
-                let chain_tip = service.get_index_chain_tip().await?;
-                println!("Index chain tip is at #{chain_tip}");
-                println!(
-                    "{} blocks will be dropped. New index chain tip will be at #{}. Confirm? [Y/n]",
-                    cmd.blocks,
-                    chain_tip - cmd.blocks as u64
-                );
-                let mut buffer = String::new();
-                std::io::stdin().read_line(&mut buffer).unwrap();
-                if buffer.starts_with('n') {
-                    return Err("Deletion aborted".to_string());
-                }
-
-                let service = Service::new(&config, ctx);
-                let block_heights: Vec<u64> = ((chain_tip - cmd.blocks as u64)..=chain_tip).collect();
-                service.rollback(&block_heights).await?;
-                println!("{} blocks dropped", cmd.blocks);
-            }
-            OrdhookCommand::Database(OrdhookDatabaseCommand::Migrate(cmd)) => {
-                let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
-                migrate_dbs(&config, ctx).await?;
-            }
-            OrdhookCommand::Database(OrdhookDatabaseCommand::Reset(cmd)) => {
-                let config = ConfigFile::default(false, false, false, &cmd.config_path, &None)?;
-                println!(
-                    "WARNING: This operation will delete ALL index data and cannot be undone. Confirm? [Y/n]"
-                );
-                let mut buffer = String::new();
-                std::io::stdin().read_line(&mut buffer).unwrap();
-                if buffer.to_lowercase().starts_with('n') {
-                    return Err("Aborted".to_string());
-                }
-                reset_dbs(&config, ctx).await?;
-            }
-        }
-        // TODO: uncomment after integrating runehook in this repo
-    }  
-    // else if let Opts::Runes(subcmd) = opts {
-    //     match subcmd {
-    //         RunehookCommand::Config(RunehookConfigCommand::New(_options)) => {
-    //             use std::fs::File;
-    //             use std::io::Write;
-    //             use std::path::PathBuf;
-    //             let config_content = generate_runehook_config();
-    //             let mut file_path = PathBuf::new();
-    //             file_path.push("Runehook.toml");
-    //             let mut file = File::create(&file_path)
-    //                 .map_err(|e| format!("unable to open file {}\n{}", file_path.display(), e))?;
-    //             file.write_all(config_content.as_bytes())
-    //                 .map_err(|e| format!("unable to write file {}\n{}", file_path.display(), e))?;
-    //             println!("Created file Runehook.toml");
-    //         }
-    //         RunehookCommand::Service(RunehookServiceCommand::Start(cmd)) => {
-    //             let config = RunehookConfig::from_file_path(&cmd.config_path)?;
-    //             let maintenance_enabled = std::env::var("MAINTENANCE_MODE").unwrap_or("0".into());
-    //             if maintenance_enabled.eq("1") {
-    //                 try_info!(ctx, "Entering maintenance mode. Unset MAINTENANCE_MODE and reboot to resume operations.");
-    //                 sleep(Duration::from_secs(u64::MAX))
-    //             }
-    //             // start_service(&config, &ctx).await?;
-    //         }
-    //         RunehookCommand::Scan(RunehookScanCommand::Start(cmd)) => {
-    //             let config = RunehookConfig::from_file_path(&cmd.config_path)?;
-    //             let blocks = cmd.get_blocks();
-    //             // let mut pg_client = pg_connect(&config, true, &ctx).await;
-    //             // let mut index_cache = IndexCache::new(&config, &mut pg_client, &ctx).await;
-    //             // scan_blocks(blocks, &config, &mut pg_client, &mut index_cache, &ctx).await?;
-    //         }
-    //         RunehookCommand::Db(RunehookDbCommand::Drop(cmd)) => {
-    //             let config = RunehookConfig::from_file_path(&cmd.config_path)?;
-    //             println!(
-    //                 "{} blocks will be deleted. Confirm? [Y/n]",
-    //                 cmd.end_block - cmd.start_block + 1
-    //             );
-    //             let mut buffer = String::new();
-    //             std::io::stdin().read_line(&mut buffer).unwrap();
-    //             if buffer.starts_with('n') {
-    //                 return Err("Deletion aborted".to_string());
-    //             }
-    
-    //             // let mut pg_client = pg_connect(&config, false, &ctx).await;
-    //             // drop_blocks(cmd.start_block, cmd.end_block, &mut pg_client, &ctx).await;
-    //         }
-    //     }
-    // } 
+        },
+    }
     Ok(())
 }

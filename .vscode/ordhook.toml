@@ -46,4 +46,3 @@ cpu_core_available = 6
 memory_available = 16
 bitcoind_rpc_threads = 2
 bitcoind_rpc_timeout = 15
-expected_observers_count = 1

@@ -15,44 +15,54 @@ use chainhook_types::BlockIdentifier;
 use config::Config;
 use crossbeam_channel::select;
 
-pub async fn start_service(config: &Config, ctx: &Context) -> Result<(), String> {
-    {
-        let mut pg_client = pg_connect(&config, true, ctx).await;
-        let mut index_cache = IndexCache::new(config, &mut pg_client, ctx).await;
-        loop {
-            let chain_tip = pg_get_block_height(&mut pg_client, ctx)
-                .await
-                .unwrap_or(get_rune_genesis_block_height(config.bitcoind.network) - 1);
-            let bitcoind_chain_tip = bitcoind_get_block_height(&config.bitcoind, ctx);
-            if bitcoind_chain_tip < chain_tip {
-                try_info!(
-                    ctx,
-                    "Waiting for bitcoind to reach height {}, currently at {}",
-                    chain_tip,
-                    bitcoind_chain_tip
-                );
-                std::thread::sleep(std::time::Duration::from_secs(10));
-            } else if bitcoind_chain_tip > chain_tip {
-                try_info!(
-                    ctx,
-                    "Block height is behind bitcoind, scanning block range {} to {}",
-                    chain_tip + 1,
-                    bitcoind_chain_tip
-                );
-                scan_blocks(
-                    ((chain_tip + 1)..=bitcoind_chain_tip).collect(),
-                    config,
-                    &mut pg_client,
-                    &mut index_cache,
-                    ctx,
-                )
-                .await?;
-            } else {
-                try_info!(ctx, "Caught up to bitcoind chain tip at {}", chain_tip);
-                break;
-            }
+pub async fn get_index_chain_tip(config: &Config, ctx: &Context) -> u64 {
+    let mut pg_client = pg_connect(&config, true, ctx).await;
+    pg_get_block_height(&mut pg_client, ctx)
+        .await
+        .unwrap_or(get_rune_genesis_block_height(config.bitcoind.network) - 1)
+}
+
+pub async fn catch_up_to_bitcoin_chain_tip(config: &Config, ctx: &Context) -> Result<(), String> {
+    let mut pg_client = pg_connect(&config, true, ctx).await;
+    let mut index_cache = IndexCache::new(config, &mut pg_client, ctx).await;
+    loop {
+        let chain_tip = pg_get_block_height(&mut pg_client, ctx)
+            .await
+            .unwrap_or(get_rune_genesis_block_height(config.bitcoind.network) - 1);
+        let bitcoind_chain_tip = bitcoind_get_block_height(&config.bitcoind, ctx);
+        if bitcoind_chain_tip < chain_tip {
+            try_info!(
+                ctx,
+                "Waiting for bitcoind to reach height {}, currently at {}",
+                chain_tip,
+                bitcoind_chain_tip
+            );
+            std::thread::sleep(std::time::Duration::from_secs(10));
+        } else if bitcoind_chain_tip > chain_tip {
+            try_info!(
+                ctx,
+                "Block height is behind bitcoind, scanning block range {} to {}",
+                chain_tip + 1,
+                bitcoind_chain_tip
+            );
+            scan_blocks(
+                ((chain_tip + 1)..=bitcoind_chain_tip).collect(),
+                config,
+                &mut pg_client,
+                &mut index_cache,
+                ctx,
+            )
+            .await?;
+        } else {
+            try_info!(ctx, "Caught up to bitcoind chain tip at {}", chain_tip);
+            break;
         }
     }
+    Ok(())
+}
+
+pub async fn start_service(config: &Config, ctx: &Context) -> Result<(), String> {
+    catch_up_to_bitcoin_chain_tip(config, ctx).await?;
 
     // Start chainhook event observer, we're at chain tip.
     let (observer_cmd_tx, observer_cmd_rx) = channel();

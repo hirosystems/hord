@@ -766,6 +766,7 @@ dependencies = [
  "num_cpus",
  "ordhook",
  "reqwest 0.11.27",
+ "runes",
  "serde",
  "serde_derive",
  "serde_json",
