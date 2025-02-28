@@ -30,7 +30,7 @@ With **ordhook**, Bitcoin developers can reliably implement feature-rich protoco
 ```console
 $ git clone https://github.com/hirosystems/ordhook.git
 $ cd ordhook
-$ cargo ordhook-install
+$ cargo bitcoin-indexer-install
 ```
 
 ## Getting started with `ordhook`

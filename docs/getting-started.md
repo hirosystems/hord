@@ -38,7 +38,7 @@ You are now inside the Ordhook directory.
 Use the Rust package manager, Cargo, to install Ordhook. Run the following command:
 
 ```bash
-cargo ordhook-install
+cargo bitcoin-indexer-install
 ```
 
 This command compiles the Ordhook code and installs it on your system.
